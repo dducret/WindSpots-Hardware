@@ -1,0 +1,27 @@
+# Default server configuration
+#
+server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+ 
+         root /opt/windspots/html;
+ 
+        index index.php index.html index.htm index.nginx-debian.html;
+ 
+        server_name _;
+ 
+        location / {
+                try_files $uri $uri/ =404;
+        }
+ 
+        location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/var/run/php/php7.3-fpm.sock;
+        }
+ 
+        location /config {
+          # /opt/windspots/html/config;
+          auth_basic "Restricted";
+          auth_basic_user_file /opt/windspots/etc/.htpasswd;
+        }
+}

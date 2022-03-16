@@ -1,0 +1,27 @@
+# interfaces(5) file used by ifup(8) and ifdown(8)
+source-directory /etc/network/interfaces.d
+ 
+auto lo
+iface lo inet loopback
+ 
+auto eth0
+iface eth0 inet dhcp
+ 
+auto eth1
+allow-hotplug eth1
+iface eth1 inet dhcp
+ 
+auto wlan0
+allow-hotplug wlan0
+iface wlan0 inet dhcp
+    wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+ 
+auto tap0
+iface tap0 inet manual
+    vde2-switch -t tap0
+ 
+auto br0
+iface br0 inet static
+    bridge-ports tap0
+    address 10.10.10.10
+    netmask 255.255.255.0

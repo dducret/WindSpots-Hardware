@@ -1,0 +1,6 @@
+# vi /etc/udev/rules.d/96-video.rules
+# udevadm info -a -p  $(udevadm info -q path -n /dev/video0) | grep name
+# chown root:root /etc/udev/rules.d/96-video.rules
+# sudo udevadm control --reload-rules
+KERNEL=="video[0-9]*", ATTR{name}=="Logitech Webcam C930e", SYMLINK+="videoWS"
+KERNEL=="video[0-9]*", ATTR{name}=="HD Pro Webcam C920", SYMLINK+="videoWS"
