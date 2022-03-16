@@ -1,0 +1,7 @@
+* * * * * /opt/windspots/bin/upload-data.sh > /dev/null 2>&1
+* * * * * /opt/windspots/bin/process-camera.sh > /dev/null 2>&1
+*/2 * * * * /opt/windspots/bin/check-network.sh > /dev/null 2>&1
+*/2 * * * * /opt/windspots/bin/health-check.sh > /dev/null 2>&1
+0 1 * * * /opt/windspots/bin/daily-duty.sh > /dev/null 2>&1
+# 0 8 * * * /usr/sbin/logrotate /etc/logrotate.conf
+# 0 2 * * * /opt/windspots/bin/reboot.sh > /dev/null 2>&1
