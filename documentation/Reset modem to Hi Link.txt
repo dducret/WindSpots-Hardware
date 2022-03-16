@@ -1,0 +1,3 @@
+AT^U2DIAG=0 will force the modem into serial modem mode
+AT^U2DIAG=375 to get back into HiLink mode
+AT^U2DIAG=119 for E173 to get back into HiLink mode
