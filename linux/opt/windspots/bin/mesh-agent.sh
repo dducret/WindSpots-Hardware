@@ -1,0 +1,5 @@
+#!/bin/sh
+# This will install the meshagent for remote access
+# uninstall
+# (wget "https://mc.windspots.org:444/meshagents?script=1" --no-check-certificate -O ./meshinstall.sh || wget "https://mc.windspots.org:444/meshagents?script=1" --no-proxy --no-check-certificate -O ./meshinstall.sh) && chmod 755 ./meshinstall.sh && sudo -E ./meshinstall.sh uninstall https://mc.windspots.org:444 'c@BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF' || ./meshinstall.sh uninstall uninstall uninstall https://mc.windspots.org:444 'c@BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF'
+(wget "https://mc.windspots.org:444/meshagents?script=1" --no-check-certificate -O ./meshinstall.sh || wget "https://mc.windspots.org:444/meshagents?script=1" --no-proxy --no-check-certificate -O ./meshinstall.sh) && chmod 755 ./meshinstall.sh && sudo -E ./meshinstall.sh https://mc.windspots.org:444 'c@BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF' || ./meshinstall.sh https://mc.windspots.org:444 'c@BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF'
