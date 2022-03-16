@@ -1,0 +1,8 @@
+prefix=/usr/local
+includedir=${prefix}/include
+
+Name: libble++
+Description: Bluetooth LE interface for C++
+Version: version-0.5
+Libs: -lble++ -lbluetooth  
+Cflags: -I${includedir}
