@@ -1,0 +1,64 @@
+STATION=CHGE99
+STATION_NAME="Dev"
+STATION_SHORT="Dev"
+# Meteo Suisse Name - If none please set NA (Not Applicable)
+MS_NAME="NA"
+INFORMATION=""
+# KITE 1 - WINDSURF 2 - PADDLE 4 - RELAX 8 - PARA 16 - SWIM 32
+SPOT_TYPE=14
+ONLINE=Y
+MAINTENANCE=N
+# Maintenance reason - If none please set NA (Not Applicable)
+REASON="NA"
+# LOCATION - ALTITUDE IN METER
+ALTITUDE=372
+LATITUDE=46.202629
+LONGITUDE=6.160183
+# STATION GMT 'BERN = 1' - 'NEW YORK = -5'
+GMT=1
+# DIRECTION ADJUSTMENT IN DEGREE
+DIRADJ=0
+# CAMERA ROTATION IN DEGREE +10 -10
+CAMROTATE=0
+# CAMERA HEIGHT ADJUST 0 +650
+CAMADJUST=150
+# WS CAPE 
+DEBUG=N
+W3RPI=Y
+WS433=N
+WSANEMO=Y
+WSTEMP=Y
+WSSOLAR=N
+# WS300 - BLUETOOTH
+W3BLE=N 
+ADDRESS="88:6b:0f:58:b5:88"
+# NETWORK - 3G=>PPP
+RJ45=N
+WIFI=Y 
+PPP=N
+MODEM_IP="192.168.8.1"
+# Data last transmission test in seconds
+DATA_TRANSMISSION=90
+# Image last transmission test in second
+IMAGE_TRANSMISSION=1800
+# Local files
+TMP=/var/tmp
+LOG=/var/log
+WINDSPOTS_ETC=/opt/windspots/etc
+WINDSPOTS_LIB=/opt/windspots/lib
+WINDSPOTS_BIN=/opt/windspots/bin
+WINDSPOTS_LOG=/var/log/windspots.log
+# Station
+SERIAL=`cat /opt/windspots/etc/serial`
+VERSION=`cat /opt/windspots/etc/version`
+# CURL
+CURL_LOG_PATH=/var/log/curl.log
+CURL_TIMEOUT=30         # see curl --max-time # TODO maybe we want different timeouts for some operations
+# please change also in /opt/windspots/etc/fswebcam.conf
+CAM_DEVICE=/dev/video0
+IMAGE_PATH=/var/tmp/input.jpg
+WINDSPOTS_WTAG=/var/tmp/windtag.txt
+SUNTEST=N
+# URL
+STATUS_URL=http://status.windspots.org
+STATION_URL=http://station.windspots.org
