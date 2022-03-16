@@ -1,0 +1,46 @@
+* test with reports of SS Note4 and A7 444 502 not working
+
+* check singleinstance tmp folder - doest it get emptied on reboot? it
+   not then our systemd service should execstartpre call to rm the tmp
+   file to make sure the lock is always cleared on reboot and doesn't
+   get stuck
+
+* Broadcast its own ip
+
+* (howto) (done) disable autosuspend (can't find the power/control or autosuspend option in this archlinux)
+  * set autosuspend to -1 for in /etc/modprobe.d/usb-autosuspend.conf like so:
+  options usbcore autosuspend=-1
+  
+
+---
+
+* Ubuntu PC dmesg on disconnect:
+[ 6584.284495] Bluetooth: Unexpected start frame (len 367)
+
+(In this case - it happend shortly after the phone next to it
+   disconnects from bt manually. Another full-day use did not have such disconnects.)
+
+Related web searches below:
+
+http://ubuntuforums.org/showthread.php?t=2159645&page=6
+
+http://askubuntu.com/questions/589617/apple-magic-mouse-frequently-disconnects-and-reconnects/629495#629495
+
+https://grvj.wordpress.com/2013/11/21/bluetooth-sleep-issue-linux-mintubuntu/
+
+---
+
+* --dns-server for non-internet mode use as local http server
+
+* manual ip + dns mode for direct computer to pi development via ssh +
+   bt obex auto accept method too
+
+* test ssh - development
+  - raspbian
+  - archlinux
+
+---
+
+make all edl_* handle sigint and cleanup before exit
+let edl_stop call killall -INT to cleanup well before ext
+edl_stop make as singleton too
