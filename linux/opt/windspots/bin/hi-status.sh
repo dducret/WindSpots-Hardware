@@ -15,8 +15,8 @@ rm $FILE  2> /dev/null
 rm $SESSION  2> /dev/null
 # 
 curl -s -X GET "http://$MODEM_IP/api/webserver/SesTokInfo" -m $CURL_TIMEOUT > $SESSION
-COOKIE=`grep "SessionID=" $SESSION | cut -b 10-147`
-TOKEN=`grep "TokInfo" $SESSION | cut -b 10-41`
+COOKIE=`grep -oP '(?<=<SesInfo>).*(?=</SesInfo)' $SESSION`
+TOKEN=`grep -oP '(?<=<TokInfo>).*(?=</TokInfo)' $SESSION`
 #
 curl -s -X GET "http://$MODEM_IP/api/monitoring/status" \
 -m $CURL_TIMEOUT \
@@ -37,6 +37,10 @@ curl -s -X GET "http://$MODEM_IP/api/net/current-plmn" \
 -H "Cookie: $COOKIE" -H "__RequestVerificationToken: $TOKEN" \
 -H "Content-Type: text/xml" >> $FILE
 #
+devicename=$(awk -F '[<>]' '/DeviceName/{print $3}' $FILE)
+echo DEVICENAME=$devicename
+imsi=$(awk -F '[<>]' '/Imsi/{print $3}' $FILE)
+echo IMSI=$imsi
 signalicon=$(awk -F '[<>]' '/SignalIcon/{print $3}' $FILE)
 echo SIGNALICON=$signalicon
 maxsignal=$(awk -F '[<>]' '/maxsignal/{print $3}' $FILE)
