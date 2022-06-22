@@ -2,7 +2,7 @@
   header('Content-type: application/json');
   $file="/var/tmp/infos";
   $fp = fopen($file, "r") or die("Can't open $file");
-  $lines;
+  $lines = "";
   while(!feof($fp))  {
     $line = fgets($fp);
     $lines=$lines.$line;

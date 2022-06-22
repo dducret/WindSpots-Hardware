@@ -8,7 +8,7 @@
         }
   // alim
   // logIt("Start");
-  $alim_values = shell_exec("/opt/windspots/bin/getalim");
+  $alim_values = shell_exec("/opt/windspots/bin/cpp/WS200/getalim/getalim");
   $values = parse_ini_string($alim_values);
   // i2c
   $i2cdetect = shell_exec("i2cdetect -y 1");
@@ -16,17 +16,17 @@
   // bmp280
   // logIt("bmp280");
   $windspots_ini = parse_ini_file("/opt/windspots/etc/main");
-  $bmp280_values = shell_exec("/opt/windspots/bin/getbaro -a ".$windspots_ini['ALTITUDE']);
+  $bmp280_values = shell_exec("/opt/windspots/bin/cpp/WS200/getbaro/getbaro -a ".$windspots_ini['ALTITUDE']);
   $bmp280 = parse_ini_string($bmp280_values);
   // ads1015
   // logIt("ads1015");
-  $ads1015_values = shell_exec("/opt/windspots/bin/gettemp");
+  $ads1015_values = shell_exec("/opt/windspots/bin/cpp/WS200/gettemp/gettemp");
   $ads1015 = parse_ini_string($ads1015_values);
   // anemo
   // logIt("anemo");
   // $anemo_values = shell_exec("/opt/windspots/bin/getanemo");
   // $anemo = parse_ini_string($anemo_values);
-  exec("sudo /opt/windspots/bin/getanemo", $anemo);
+  exec("sudo /opt/windspots/bin/cpp/WS200/getanemo/getanemo", $anemo);
   $anemo1=parse_ini_string($anemo[0]);
   $anemo0=parse_ini_string($anemo[1]);
   //
