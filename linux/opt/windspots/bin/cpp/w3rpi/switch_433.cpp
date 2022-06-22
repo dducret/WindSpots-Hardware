@@ -6,7 +6,6 @@
 #include <wiringPi.h>
 #include "switch_433.h"
 #include "ook_433.h"
-#include "version.h"
 using namespace std;
 //
 char switch_433::OokReceivedCode[RCSWITCH_MAX_MESS_SIZE];

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include "w3rpi.h"
 #include "core_433.h"
 #include "eventManager.h"
 #include "singleton.h"
@@ -24,10 +25,9 @@ void * core_433::receptionLoop( void * _param ) {
   while(1) {
     // Scan for sensor code
     if ( mySwitch->getOokCode(_tmpStr) ) {
-      #ifdef TRACECORE433
-        std::cout << "* core_433::receptionLoop() - received message [" << _tmpStr << "]" << std::endl;
-      #endif
-      if ( _tmpStr && strlen(_tmpStr) > 4 ) {
+      if ( w3rpi_debug )
+        std::cout << "w3rpi core_433::receptionLoop() - received message [" << _tmpStr << "]" << std::endl;
+      if ( strlen(_tmpStr) > 4 ) {
         if ( Singleton::get() != NULL ) {
            Singleton::get()->getEventManager()->enqueue(w3rpi_EVENT_GETSENSORDATA,_tmpStr);
         }

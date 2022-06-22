@@ -7,9 +7,9 @@
 #include <math.h> 
 #include <sys/time.h>
 #include <sqlite3.h>
+#include "w3rpi.h"
 #include "eventManager.h"
 #include "singleton.h"
-#include "version.h"
 #include "oregon.h"
 using namespace std;
 using namespace w3rpi;
@@ -47,6 +47,10 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
   bSolar = b_solar;
   sprintf(message,"Program Starting. log:%s, tmp:%s, altitude:%d, dir-correction:%d, 433:%u, Temp:%u, Anemo:%u, Solar: %u", log.c_str(), tmp.c_str(), altitude, direction, b_radio, b_temperature, b_anemometer, b_solar);
   logIt();
+  if(w3rpi_debug) {
+    sprintf(message,"Debug Mode");
+    logIt();
+  }
   // i2c sensors
   myBmp280 = new bmp280();
   inaBattery0 = new ina219(0x41);
@@ -92,9 +96,8 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
 void EventManager::store(const char * _name, int channel, double battery, double temperature, double humidity, int barometer, 
                            double windDirection, double windSpeed, double windSpeedAverage) {
   if( _name == NULL) {
-    #ifdef TRACEEVENTMNG
+    if(w3rpi_debug)
       printf("w3rpi EventManager::store _name == NULL\n");
-    #endif
     return;
   }
   // if no data => no record
@@ -117,9 +120,8 @@ void EventManager::store(const char * _name, int channel, double battery, double
   sprintf(sql2, "'%s', '%s', %d, '%0.1f', '%0.1f', '0', '%0.f', '%u', '%0.1f', '%0.2f', '%0.2f');", 
                   currentTime, _name, channel, battery, temperature, humidity, barometer, windDirection, windSpeed, windSpeedAverage);
   strcat(sql, sql2);
-  #ifdef TRACEEVENTMNG
-    printf("w3rpi EventManager::store sql:%s\n",sql);
-  #endif
+  if(w3rpi_debug)
+    printf("w3rpi EventManager::store sql:%s\n\n",sql);
   if( sqlite3_exec(db, sql, NULL, NULL, &err_msg) != SQLITE_OK) {
     sprintf(message,"w3rpi EventManager::store SQL error: %s\n", err_msg);
     logIt();
@@ -192,9 +194,8 @@ double EventManager::getThermistor(){
   ads->setGain(GAIN_ONE);
   int adc_value = ads->readADC_SingleEnded(1); // port 1 ADS1015
   double volts = (adc_value * 3.3) / 1648; // calculate the voltage base on 3.3v
-  #ifdef TRACEEVENTMNG
+  if(w3rpi_debug)
     printf("w3rpi EventManager::getThermistor volts = %0.2f\n",volts);
-  #endif
   if(volts > 0) {
     double ohm = round((3.3 - volts) / volts * 10000);
     // http://www.thinksrs.com/downloads/programs/Therm%20Calc/NTCCalibrator/NTCcalculator.htm
@@ -233,12 +234,15 @@ int EventManager::getBarometerSealevel(){
   int sealevel  = 0;
   // bmp280
   if( !myBmp280->update() ) {
-    printf("w3rpi EventManager::eventLoop - Bmp280 error");
+    if(w3rpi_debug)
+   		printf("w3rpi EventManager::eventLoop - Bmp280 error\n");
+    sprintf(message,"w3rpi EventManager::eventLoop - Bmp280 error\n");
+    logIt();
+    return 0;
   }
   barometer = myBmp280->getPressure();
-  #ifdef TRACEEVENTMNG
+  if(w3rpi_debug)
       printf("w3rpi EventManager::getBarometerSealevel barometer = %0.f\n", barometer);
-  #endif
   if(barometer<700)
     return 0;
   // altitude correction
@@ -261,16 +265,14 @@ void EventManager::enqueue(int newEvent, char * _strValue) {
   ev.eventType = newEvent;
   if ( _strValue != NULL ) {
     if ( strlen(_strValue) > w3rpi_EVENT_MAX_SIZE-1 ) {
-      #ifdef TRACEEVENTMNG
+      if(w3rpi_debug)
         printf("w3rpi EventManager::enqueue (%s) TOO LONG \n",_strValue);
-      #endif
     }
     strncpy( ev.strValue, _strValue, w3rpi_EVENT_MAX_SIZE-1);
   } else ev.strValue[0] = '\0';
   pthread_mutex_lock( &this->eventListMutex );
-  #ifdef TRACEEVENTMNG
+  if(w3rpi_debug)
     printf("w3rpi EventManager::enqueue (%s)\n",_strValue);
-  #endif
   this->eventList.push_back(ev);
   pthread_mutex_unlock( &this->eventListMutex );
 }
@@ -289,7 +291,7 @@ void * EventManager::eventLoop(void * _param ) {
   double batteryLevel = 0;
   long int previousMs = 0;
   long int currentMs = 0;
-  struct timeval tp =  (struct timeval){0};
+  struct timeval tp;
   oregon * s = NULL;
   Event ev;
   // get first timestamp  
@@ -305,18 +307,17 @@ void * EventManager::eventLoop(void * _param ) {
       switch (ev.eventType) {
         // INIT OF MODULE - check leds & RX / TX
         case w3rpi_EVENT_INIT:
-          #ifdef TRACEEVENTMNG
+          if(w3rpi_debug) {
             printf("w3rpi EventManager::eventLoop INIT \n");
             if ( Singleton::get() ) {
               printf("w3rpi EventManager::eventLoop w3rpi Started ! \n");
             }
-          #endif
+          }
           break;
         // Just received an event from the RF module
         case w3rpi_EVENT_GETSENSORDATA:
-          #ifdef TRACEEVENTMNG
+          if(w3rpi_debug)
             printf("w3rpi EventManager::eventLoop GETSENSORDATA \n");
-          #endif
           s = oregon::getRightOregon(ev.strValue);
           if ( s != NULL && s->isDecoded() ) {
             switch(s->getBattery()) {
@@ -341,16 +342,11 @@ void * EventManager::eventLoop(void * _param ) {
                 windDirection = 0;
             }
             myEventManager->store(s->getName(), s->getChannel(), batteryLevel, s->getTemperature(), s->getHumidity(), s->getBarometer(), windDirection, s->getSpeed(), s->getSpeedAverage());
-            #ifdef TRACEEVENTMNG
-              printf("w3rpi EventManager::eventLoop %s-%d Battery:%0.f - Wind Direction:%0.f, Wind Speed:%0.2f, Average Speed:%0.2f\n",
-                      s->getName(), s->getChannel(), batteryLevel, windDirection, (s->getSpeed() * 3.6) , (s->getSpeedAverage() * 3.6));
-            #endif
             }
           break;
         default:
-          #ifdef TRACEEVENTMNG
+          if(w3rpi_debug)
             printf("w3rpi EventManager::eventLoop proceed UNKNOWN (%s) \n",ev.strValue);
-          #endif
           break;
       }
     }

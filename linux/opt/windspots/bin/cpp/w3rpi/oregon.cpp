@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <time.h>
 #include "oregon.h"
+#include "w3rpi.h"
 using namespace std;
 using namespace w3rpi;
-//#define SENSORDEBUG
 // Construction - init variable then call decode function
 oregon::oregon( char * _strval ) {
   time(&this->lastUpdate);
@@ -205,9 +205,8 @@ void oregon::_decodeTemperature(char * message) {
     if(getIntFromChar(message[11]) != 0)
       dResult = dResult * -1;
     this->Temperature=dResult/10;
-    #ifdef SENSORDEBUG
+    if ( w3rpi_debug )
       printf("    _decodeTemperature - Temperature (%s): %0.1f\n", reverse, this->Temperature);
-    #endif
     this->haveTemperature = true;
 }
 void oregon::_decodeWaterTemperature(char * message) {
@@ -224,9 +223,8 @@ void oregon::_decodeWaterTemperature(char * message) {
     reverse[3] = '\0';
     sscanf(reverse, "%lf", &dResult);
     this->WaterTemperature=dResult/10;
-    #ifdef SENSORDEBUG
-      printf("    _decodeWaterTemperature - Temperature (%s): %0.1f\n", reverse, this->WaterTemperature);
-    #endif
+    if ( w3rpi_debug )
+        printf("    _decodeWaterTemperature - Temperature (%s): %0.1f\n", reverse, this->WaterTemperature);
     this->haveWaterTemperature = true;
 }
 void oregon::_decodeTemperatureHumidity(char * message) {
@@ -245,17 +243,15 @@ void oregon::_decodeTemperatureHumidity(char * message) {
     if(getIntFromChar(message[11]) != 0)
       dResult = dResult * -1;
     this->Temperature=dResult/10;
-    #ifdef SENSORDEBUG
-      printf("    _decodeTemperatureHumidity - Temperature (%s): %0.1f\n", reverse, this->Temperature);
-    #endif
+    if ( w3rpi_debug )
+        printf("    _decodeTemperatureHumidity - Temperature (%s): %0.1f\n", reverse, this->Temperature);
     reverse[0] = message[13];
     reverse[1] = message[12];
     reverse[2] = '\0';
     sscanf(reverse, "%lf", &dResult);
     this->Humidity=dResult;
-    #ifdef SENSORDEBUG
-      printf("    _decodeTemperatureHumidity - Humidity (%s): %0.f\n", reverse, this->Humidity);
-    #endif
+    if ( w3rpi_debug )
+        printf("    _decodeTemperatureHumidity - Humidity (%s): %0.f\n", reverse, this->Humidity);
     this->haveTemperature = true;
     this->haveHumidity = true;
 }
@@ -275,29 +271,25 @@ void oregon::_decodeTemperatureHumidityBarometer(char * message) {
     if(getIntFromChar(message[11]) != 0)
       dResult = dResult * -1;
     this->Temperature=dResult/10;
-    #ifdef SENSORDEBUG
+    if ( w3rpi_debug )
       printf("    _decodeTemperatureHumidityBarometer - Temperature (%s): %0.1f\n", reverse, this->Temperature);
-    #endif
     reverse[0] = message[13];
     reverse[1] = message[12];
     reverse[2] = '\0';
     sscanf(reverse, "%lf", &dResult);
     this->Humidity=dResult;
-    #ifdef SENSORDEBUG
+    if ( w3rpi_debug )
       printf("    _decodeTemperatureHumidityBarometer - Humidity (%s): %0.f\n", reverse, this->Humidity);
-    #endif
     reverse[0] = message[16];
     reverse[1] = message[15];
     reverse[2] = '\0';
     sscanf(reverse, "%lf", &dResult);
     this->Barometer=dResult+856;
-    #ifdef SENSORDEBUG
-      printf("    _decodeTemperatureHumidityBarometer - Barometer (%s): %0.f\n", reverse, this->Barometer);
-    #endif
+    if ( w3rpi_debug )
+      printf("    _decodeTemperatureHumidityBarometer - Barometer (%s): %u\n", reverse, this->Barometer);
     this->Prediction = getIntFromChar(message[17]);
-    #ifdef SENSORDEBUG
+    if ( w3rpi_debug )
       printf("    _decodeTemperatureHumidityBarometer - Prediction (%s): %d\n", reverse, this->Prediction);
-    #endif
     this->haveTemperature = true;
     this->haveHumidity = true;
     this->haveBarometer = true;
@@ -311,27 +303,24 @@ void oregon::_decodeWind(char * message) {
   char reverse[5];
   double dResult;
   this->WindDirection = (double) getIntFromChar(message[8]) * 22.5;
-  #ifdef SENSORDEBUG
-      printf("    _decodeWind - Direction (%x): %f\n", getIntFromChar(message[8]), this->WindDirection);
-  #endif
+  if ( w3rpi_debug )
+    printf("    _decodeWind - Direction (0x0%x): %0.1f\n", getIntFromChar(message[8]), this->WindDirection);
   reverse[0] = message[13];
   reverse[1] = message[12];
   reverse[2] = message[11];
   reverse[3] = '\0';
   sscanf(reverse, "%lf", &dResult);
   this->Speed=dResult/10;
-  #ifdef SENSORDEBUG
-      printf("    _decodeWind - Speed (%s): %0.1f\n", reverse, this->Speed);
-  #endif
+  if ( w3rpi_debug )
+    printf("    _decodeWind - Speed (%s): %0.1f\n", reverse, this->Speed);
   reverse[0] = message[16];
   reverse[1] = message[15];
   reverse[2] = message[14];
   reverse[3] = '\0';
   sscanf(reverse, "%lf", &dResult);
   this->SpeedAverage=dResult/10;
-  #ifdef SENSORDEBUG
-      printf("    _decodeWind - SpeedAverage (%s): %0.1f\n", reverse, this->SpeedAverage);
-  #endif
+  if ( w3rpi_debug )
+    printf("    _decodeWind - SpeedAverage (%s): %0.1f\n", reverse, this->SpeedAverage);
   this->haveWind = true;
 }
 void oregon::_decodeWind968(char * message) {
@@ -348,27 +337,24 @@ void oregon::_decodeWind968(char * message) {
   reverse[3] = '\0';
   sscanf(reverse, "%lf", &dResult);
   this->WindDirection = (double) dResult;
-  #ifdef SENSORDEBUG
-      printf("    _decodeWind968 - Direction (%x): %f\n", getIntFromChar(message[8]), this->WindDirection);
-  #endif
+  if ( w3rpi_debug )
+    printf("    _decodeWind968 - Direction (%x): %f\n", getIntFromChar(message[8]), this->WindDirection);
   reverse[0] = message[13];
   reverse[1] = message[12];
   reverse[2] = message[11];
   reverse[3] = '\0';
   sscanf(reverse, "%lf", &dResult);
   this->Speed=dResult/10;
-  #ifdef SENSORDEBUG
-      printf("    _decodeWind968 - Speed (%s): %0.1f\n", reverse, this->Speed);
-  #endif
+  if ( w3rpi_debug )
+    printf("    _decodeWind968 - Speed (%s): %0.1f\n", reverse, this->Speed);
   reverse[0] = message[16];
   reverse[1] = message[15];
   reverse[2] = message[14];
   reverse[3] = '\0';
   sscanf(reverse, "%lf", &dResult);
   this->SpeedAverage=dResult/10;
-  #ifdef SENSORDEBUG
-      printf("    _decodeWind968 - SpeedAverage (%s): %0.1f\n", reverse, this->SpeedAverage);
-  #endif
+  if ( w3rpi_debug )
+    printf("    _decodeWind968 - SpeedAverage (%s): %0.1f\n", reverse, this->SpeedAverage);
   this->haveWind = true;
 }
 void oregon::_decodeWind928(char * message) {
@@ -385,36 +371,32 @@ void oregon::_decodeWind928(char * message) {
   reverse[3] = '\0';
   sscanf(reverse, "%lf", &dResult);
   this->WindDirection = (double) dResult;
-  #ifdef SENSORDEBUG
+  if ( w3rpi_debug )
     printf("    _decodeWind928 - Direction (%s): %f\n", reverse, this->WindDirection);
-  #endif
   reverse[0] = message[15];
   reverse[1] = message[12];
   reverse[2] = message[13];
   reverse[3] = '\0';
   sscanf(reverse, "%lf", &dResult);
   this->Speed=dResult/10;
-  #ifdef SENSORDEBUG
+  if ( w3rpi_debug )
     printf("    _decodeWind928 - Speed (%s): %0.1f\n", reverse, this->Speed);
-  #endif
   reverse[0] = message[16];
   reverse[1] = message[17];
   reverse[2] = message[14];
   reverse[3] = '\0';
   sscanf(reverse, "%lf", &dResult);
   this->SpeedAverage=dResult/10;
-  #ifdef SENSORDEBUG
+  if ( w3rpi_debug )
     printf("    _decodeWind928 - SpeedAverage (%s): %0.1f\n", reverse, this->SpeedAverage);
-  #endif
   this->haveWind = true;
 }
 oregon * oregon::getRightOregon(char * s) {
   int  len = strlen(s);
   if ( len > 4 ) {
     char * message = & s[4];
-    #ifdef SENSORDEBUG
+    if ( w3rpi_debug )
       printf("SENSOR message: %s\n",s);
-    #endif
     if ( s[0] == 'O' && s[1] == 'S' && s[2] == '2') {
       OregonV2V3 * r = new OregonV2V3(message);
       return (oregon *) r;
@@ -439,9 +421,8 @@ bool OregonV2V3::decode( char * message ) {
     isensorId = getIntFromString(this->ID);
     this->Channel = char2int(message[4]);
     this->RollingCode = char2int(message[5]);
-    #ifdef SENSORDEBUG
+    if ( w3rpi_debug )
       printf("OS - decode - id(0x%4X) length:%i\n", isensorId, len);
-    #endif
     switch (isensorId) {
       case 0xF824:
         strcpy(this->Name,"THGR810");
@@ -596,11 +577,11 @@ bool OregonV2V3::decode( char * message ) {
       default:
         // sprintf(this->Name,"OS ID: %s - channel: %d - not decoded", this->ID, this->Channel);
         this->isValid = false;
-        printf("OS ID: %s - channel - %d - not decoded(%d): %s\n", this->ID, this->Channel, len,  message);
+        printf("oregon.cpp - ID: %s - channel - %d - not decoded(%d): %s\n", this->ID, this->Channel, len,  message);
         break;
     }
     return true;
   }
-  printf("OS - not decoded(%d) - %s\n", len,  message);
+  printf("oregon.cpp - OS not decoded(%d) - %s\n", len,  message);
   return false;
 }

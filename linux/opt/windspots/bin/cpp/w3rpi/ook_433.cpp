@@ -1,8 +1,9 @@
-// RcOoK.cpp
+// ook_433.cpp
 #include <iostream>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include "w3rpi.h"
 #include "switch_433.h"
 #include "ook_433.h"
 using namespace std;
@@ -64,7 +65,7 @@ void DecodeOOK::done() {
  */
 void DecodeOOK::sprint(const char * s, char * d) {
   char v[] = { '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F' };
-  // debug char * _d = d;
+  char * _d = d;
   byte pos;
   const byte* data = this->getData(pos);
   sprintf(d,"%s ",s);
@@ -74,7 +75,9 @@ void DecodeOOK::sprint(const char * s, char * d) {
     sprintf(d,"%c",v[ data[i] & 0x0F]);d++;
   }
   sprintf(d,"%c",'\0');
-  // debug std::cout << " * DecodeOOK received [" << _d << "]" << std::endl;
+  if(w3rpi_debug) {
+    std::cout << "\nw3rpi DecodeOOK::sprint received [" << _d << "]" << std::endl;
+  }
 }
 void DecodeOOK::print(const char* s) {
   char t[128];

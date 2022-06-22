@@ -12,9 +12,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <wiringPi.h>
+#include "w3rpi.h"
 #include "singleton.h"
-#include "version.h"
 using namespace std;
+bool w3rpi_debug;
 //  
 static void show_usage() {
     std::cerr << "Usage: w3rpi <option(s)>\n"
@@ -24,6 +25,7 @@ static void show_usage() {
               << "\t-a,--altitude\t\tAltitude in meter\n"
               << "\t-l,--log\t\tLog file default:/var/log\n"
               << "\t-t,--tmp\t\tLog file default:/var/tmp\n"
+              << "\t--debug\t\tDebug mode\n"
               << std::endl;
 }
 void count() { // Wind Speed
@@ -43,6 +45,7 @@ int main(int argc, char *argv[]) {
   bool anemometer = false;
   bool temperature = false;
   bool solar = false;
+  w3rpi_debug = false;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     if ((arg == "-h") || (arg == "--help")) {
@@ -129,6 +132,19 @@ int main(int argc, char *argv[]) {
           return 1;
       }  
     } 
+    if (arg == "--debug") {
+      if (i + 1 < argc) { 
+          first = argv[i+1][0];
+          first = toupper(first);
+          if(first == 'Y') {
+            w3rpi_debug = true;
+          } 
+      } else { 
+          std::cerr << "--debug." << std::endl;
+          return 1;
+      }  
+    } 
+    
   }
   // wiring Pi startup
   // if(wiringPiSetupGpio() == -1) {
@@ -143,7 +159,7 @@ int main(int argc, char *argv[]) {
   Singleton::get()->getEventManager()->init(log, tmp, iAltitude, iDirection, radio, temperature, anemometer, solar);
   // write information to log
   // printf("w3rpi Version (%d.%d) Branch (%s) Build date(%u)",W3RPI_VERSION_MAJOR,W3RPI_VERSION_MINOR,W3RPI_VERSION_BRANCH,&W3RPI_BUILD_DATE);
-  // printf("w3rpi Initialize log:%s, tmp:%s, altitude:%d, direction:%d, 433:%u, Temp:%u, Anemo:%u, Solar: %u",log.c_str(),tmp.c_str(),iAltitude,iDirection,radio,temperature,anemometer,solar);
+  // printf("w3rpi Initialize log:%s, tmp:%s, altitude:%d, direction:%d, 433:%u, Temp:%u, Anemo:%u, Solar: %u, Debug: %u",log.c_str(),tmp.c_str(),iAltitude,iDirection,radio,temperature,anemometer,solar,w3rpi_debug);
   // Wind Speed
   if(anemometer) {
     pinMode(17,INPUT);
