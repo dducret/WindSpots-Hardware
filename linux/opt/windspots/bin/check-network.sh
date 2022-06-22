@@ -87,7 +87,7 @@ else
   fi
 fi
 # check if default route exist
-IP=$(/sbin/ip route | awk '/default/ { print $3 }')
+IP=$(/sbin/ip route | awk '/default/ { print $3 }' | awk 'NR==1')
 if [ $IP ]; then
   echo "Default route: ${IP}"
 else

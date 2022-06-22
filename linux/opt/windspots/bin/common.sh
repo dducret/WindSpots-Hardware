@@ -53,7 +53,7 @@ ws_night()
 #date +"%T.%3N"
 # locking
 scriptname=$(basename $0)
-pidfile="/tmp/${scriptname}.pid"
+pidfile="$TMP/${scriptname}.pid"
 touch $pidfile
 read lastPID < $pidfile
 if [ ! -z "$lastPID" -a -d /proc/$lastPID ]; then

@@ -11,8 +11,8 @@ rm $FILE  2> /dev/null
 rm $SESSION  2> /dev/null
 # 
 curl -s -X GET "http://$MODEM_IP/api/webserver/SesTokInfo" -m $CURL_TIMEOUT > $SESSION
-COOKIE=`grep "SessionID=" $SESSION | cut -b 10-147`
-TOKEN=`grep "TokInfo" $SESSION | cut -b 10-41`
+COOKIE=`grep -oP '(?<=<SesInfo>).*(?=</SesInfo)' $SESSION`
+TOKEN=`grep -oP '(?<=<TokInfo>).*(?=</TokInfo)' $SESSION`
 #
 curl -s -X POST "http://$MODEM_IP/api/device/control" \
 -m $CURL_TIMEOUT \
