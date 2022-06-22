@@ -17,22 +17,17 @@ import edl_util
 from edl_util import printlog
 import singleton
 from optparse import OptionParser, make_option
-import os
 
 #http://stackoverflow.com/questions/380870/python-single-instance-of-program
 me = singleton.SingleInstance() # will sys.exit(-1) if other instance is running
 
 usage = """EcoDroidLink v1.20 - BlueZ Bluetooth Network Access Point Automation
 Please see README.markdown (at https://github.com/ykasidit/ecodroidlink) for full purpose, setup and usage.
-
 Usage:
-
-- [Default]: By default, without any params, edl_main would assume an existing-bridge br0. For the older 'auto' ceate a DHCP bridge over eth0, then use that bridge to share the internet to bluetooth clients. So just run:
-sudo ./edl_main --auto_bridge
-
+- [Default]: By default, edl_main would try to create a DHCP bridge over eth0, then use that bridge to share the internet to bluetooth clients. So just run:
+sudo ./edl_main
 However, if your main dhcp internet source is not eth0 (For example 'usb0' for usb-tethering internet sources) - you can specify it like below example for usb0 :
 sudo ./edl_main --interface usb0
-
 - [Recommended]: Please manually create a 'bridge' (in /etc/network/interfaces - you can fully customize the bridge as you like - static ip, etc) containing your desired interface (like 'eth0'). Make sure the same interface is not set out of the bridge. Restart your computer, make sure internet works, then specify the bridge's name (like 'br0') - for example:
 sudo ./edl_main --use_existing_bridge br0
 """
@@ -42,27 +37,19 @@ use_existing_bridge = None
 src_interface = "eth0"
 
 ##### override this like 'sudo ./edl_main --interface eth1' (for usb tethering sources it would be usb0)
-auto_bridge = False
 
 option_list = [
-    make_option("--interface", action="store",
-		type="string", dest="interface"),
-    make_option("--use_existing_bridge", action="store",
-		type="string", dest="existing_bridge"),
-    make_option("--auto_bridge", action="store_true", dest="auto_bridge")
-    
+		make_option("--interface", action="store",
+				type="string", dest="interface"),
+		make_option("--use_existing_bridge", action="store",
+				type="string", dest="existing_bridge")		
 		]
 
 parser = OptionParser(usage=usage,option_list=option_list)
 
 (options, args) = parser.parse_args()
 
-if (auto_bridge == False and use_existing_bridge is None):   
-    use_existing_bridge = "br0"
-
-if (use_existing_bridge is not None):
-     printlog("running default mode - use br0 bridge")    
-elif (options.existing_bridge is not None):
+if (options.existing_bridge is not None):
     use_existing_bridge = options.existing_bridge
     printlog("edl: using existing bridge: "+use_existing_bridge)
 else:
@@ -73,12 +60,4 @@ else:
     else:
         printlog("edl: auto-create bridge (dhcp) over default interface eth0 - you can customize like 'sudo ./edl_main --interface eth1' or usb0 or whatever is your internet souce. NOTE: It is recommended to create your own bridge in /etc/network/interfaces and specify like 'sudo ./edl_main --use_existing_bridge br0' for real deployment in auto-start-on-boot mode. Please see README.markdown for full info.")
 
-#Optional custom hook to prepare any data partition if needed - not required for normal use
-this_path = ""
-try:
-    this_path = os.path.dirname(unicode(__file__, encoding))
-except Exception as e:
-    this_path = os.path.dirname(str(__file__))
-edl_util.edl_call(this_path+"/prepare_ecodroidlink_data_parition.sh","hook_prepare_data")
-       
 edl_util.main_loop(use_existing_bridge,src_interface)

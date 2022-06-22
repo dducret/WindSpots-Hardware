@@ -11,6 +11,8 @@ __status__ = "Production"
 #header format from http://stackoverflow.com/questions/1523427/python-what-is-the-common-header-format
 
 import sys
+if sys.version_info[0] >= 3:
+    unicode = str
 import time
 import dbus
 from subprocess import call
@@ -42,16 +44,9 @@ def edl_call_no_log(cmd,dbg_header):
     return ret
 
 def edl_init_adapter():
-
-    # some say it helps in some cases - not sure but try set this as we're not using sco audio links anyway for our access point
-    edl_call("echo Y > /sys/module/bluetooth/parameters/disable_esco","edl_init") 
-        
     ret = edl_call("hciconfig -a hci0 up", "edl_init")
     if (ret != 0):
         return ret;
-
-    #set again just in case it requires the bt to be up first (not sure - didn't check kernel sources yet)
-    edl_call("echo Y > /sys/module/bluetooth/parameters/disable_esco","edl_init") 
 
     #now use default bt name - which is taken from computer name in /etc/hostname instead
     #ret = edl_call("hciconfig -a hci0 name EcoDroidLink", "edl_init")
@@ -106,11 +101,7 @@ def watch_agent_and_nap_process(agent_process,nap_process):
         #end of watcher def
 
 def main_loop(use_existing_bridge,src_interface):
-    # try enable ip-forwarding
-    edl_call("sudo echo 1 > /proc/sys/net/ipv4/ip_forward","edl")
-    edl_call("sysctl net.ipv4.ip_forward=1","edl")    
-    # Although, theoretically this 'ip forwarding' might not be required since the bridge works at the lower layer so it should already forwards all ip packets (http://www.linuxjournal.com/article/8172 or http://www.linuxfoundation.org/collaborate/workgroups/networking/bridge - "Since forwarding is done at Layer 2, all protocols can go transparently through a bridge."), and I've tested that the bluetooth-nap works without this ip-forward
-    
+    # dont enable ip-forwarding since it somehow causes problems with my nexus5 - so comment out this code - edl_call("sudo echo 1 > /proc/sys/net/ipv4/ip_forward","edl") # Theoretically this is 'ip forwarding' might not be required since the bridge works at the lower layer so it should already forwards all ip packets (http://www.linuxjournal.com/article/8172 or http://www.linuxfoundation.org/collaborate/workgroups/networking/bridge - "Since forwarding is done at Layer 2, all protocols can go transparently through a bridge."), and I've tested that the bluetooth-nap works without this ip-forward
     while (1):
         printlog ("edl: EcoDroidLink initialzing/cleaning processes and adapter state...")
         edl_deinit()
@@ -161,13 +152,10 @@ def main_loop(use_existing_bridge,src_interface):
             bridge_to_use = use_existing_bridge
 
         #get path to local module - since edl_nap and edl_agent are in the same folder        
-        encoding = sys.getfilesystemencoding()
-        this_path = ""
-        try:
-            this_path = os.path.dirname(unicode(__file__, encoding))
-        except Exception as e:
-            this_path = os.path.dirname(str(__file__))
-            
+        #encoding = sys.getfilesystemencoding()
+        #this_path = os.path.dirname(unicode(__file__, encoding))
+        this_path = os.path.dirname(__file__)
+        
         #start new NAP process - start this before the agent so the sdp profile would be there before users come to pair and discover services...
 
         printlog('edl: path_to_execute agent and nap on bridge: '+this_path)
