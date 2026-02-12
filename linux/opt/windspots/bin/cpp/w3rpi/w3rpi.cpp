@@ -1,176 +1,174 @@
 /* ==========================================================================
  * w3rpi.cpp
  * --------------------------------------------------------------------------
- * WindSpots 2 - RaspBerry PI Cape
- * inspired by disk91 - Paul Pinault see : http://www.disk91.com/?p=1323
+ * WindSpots 2 - Raspberry Pi Cape using pigpio
  * --------------------------------------------------------------------------
- * to check:  more /dev/kmw3rpi
  */
+
 #include <iostream>
 #include <string>
 #include <vector>
-#include <stdlib.h>
-#include <stdio.h>
-#include <wiringPi.h>
+#include <cstdlib>
+#include <cstdio>
+#include <pigpio.h>
 #include "w3rpi.h"
 #include "singleton.h"
+#include <cctype>  // For toupper
+
 using namespace std;
-bool w3rpi_debug;
-//  
+
+bool w3rpi_debug = false;
+
 static void show_usage() {
-    std::cerr << "Usage: w3rpi <option(s)>\n"
-              << "Options:\n"
-              << "\t-h,--help\t\tShow this help message\n"
-              << "\t-d,--dir-adjustment\tDirection adjustement (0, 360)\n"
-              << "\t-a,--altitude\t\tAltitude in meter\n"
-              << "\t-l,--log\t\tLog file default:/var/log\n"
-              << "\t-t,--tmp\t\tLog file default:/var/tmp\n"
-              << "\t--debug\t\tDebug mode\n"
-              << std::endl;
+    cerr << "Usage: w3rpi <option(s)>\n"
+         << "Options:\n"
+         << "\t-h,--help\t\tShow this help message\n"
+         << "\t-d,--dir-adjustment\tDirection adjustment (0, 360)\n"
+         << "\t-a,--altitude\t\tAltitude in meters\n"
+         << "\t-l,--log\t\tLog file directory (default: /var/log)\n"
+         << "\t-t,--tmp\t\tTemporary file directory (default: /var/tmp)\n"
+         << "\t--debug\t\t\tDebug mode (Y/N)\n"
+         << "\t-r,--radio\t\tRadio option (Y/N)\n"
+         << "\t-n,--anemometer\t\tAnemometer option (Y/N)\n"
+         << "\t-p,--temperature\tTemperature option (Y/N)\n"
+         << "\t-o,--solar\t\tSolar option (Y/N)\n"
+         << endl;
 }
-void count() { // Wind Speed
+
+void count() { // Wind Speed callback
   Singleton::get()->getEventManager()->anemometerAdd();
-  return;
 }
+
 void handleNoInterrupt() {
+  // Dummy no-op.
 }
+
 int main(int argc, char *argv[]) {
-  std::vector <std::string> sources;
-  std::string direction = "0";
-  std::string altitude = "0";
-  std::string tmp = "/var/tmp";
-  std::string log = "/var/log";
+  vector<string> sources;
+  string direction = "0";
+  string altitude = "0";
+  string tmp = "/var/tmp";
+  string log = "/var/log";
   char first;
-  bool radio = false; // radio option is just for information due to the fact that infinity loop of w3rpi is on 433
+  bool radio = false;
   bool anemometer = false;
   bool temperature = false;
   bool solar = false;
-  w3rpi_debug = false;
-  for (int i = 1; i < argc; ++i) {
-    std::string arg = argv[i];
-    if ((arg == "-h") || (arg == "--help")) {
-        show_usage();
-        return 0;
-    } 
-    if ((arg == "-d") || (arg == "--dir-adjustment")) {
-      if (i + 1 < argc) { 
-          direction = argv[i+1]; 
-      } else { 
-          std::cerr << "--dir-adjustment option requires one argument." << std::endl;
-          return 1;
-      }  
-    } 
-    if ((arg == "-a") || (arg == "--altitude")) {
-      if (i + 1 < argc) { 
-          altitude = argv[i+1]; 
-      } else { 
-          std::cerr << "--altitude option requires one argument." << std::endl;
-          return 1;
-      }  
-    } 
-    if ((arg == "-r") || (arg == "--radio")) {
-      if (i + 1 < argc) { 
-          first = argv[i+1][0];
-          first = toupper(first);
-          if(first == 'Y') {
-            radio = true;
-          } 
-      } else { 
-          std::cerr << "--radio option requires one argument." << std::endl;
-          return 1;
-      }  
-    } 
-    if ((arg == "-n") || (arg == "--anemometer")) {
-      if (i + 1 < argc) { 
-          first = argv[i+1][0];
-          first = toupper(first);
-          if(first == 'Y') {
-            anemometer = true;
-          } 
-      } else { 
-          std::cerr << "--anemometer option requires one argument." << std::endl;
-          return 1;
-      }  
-    } 
-    if ((arg == "-p") || (arg == "--temperature")) {
-      if (i + 1 < argc) { 
-          first = argv[i+1][0];
-          first = toupper(first);
-          if(first == 'Y') {
-            temperature = true;
-          } 
-      } else { 
-          std::cerr << "--temperature option requires one argument." << std::endl;
-          return 1;
-      }  
-    } 
-    if ((arg == "-o") || (arg == "--solar")) {
-      if (i + 1 < argc) { 
-          first = argv[i+1][0];
-          first = toupper(first);
-          if(first == 'Y') {
-            solar = true;
-          } 
-      } else { 
-          std::cerr << "--solar option requires one argument." << std::endl;
-          return 1;
-      }  
-    } 
-    if ((arg == "-l") || (arg == "--log")) {
-      if (i + 1 < argc) { 
-          log = argv[i+1];
-      } else { 
-          std::cerr << "--log option requires one argument." << std::endl;
-          return 1;
-      }  
-    } 
-    if ((arg == "-t") || (arg == "--tmp")) {
-      if (i + 1 < argc) { 
-          tmp = argv[i+1];
-      } else { 
-          std::cerr << "--tmp option requires one argument." << std::endl;
-          return 1;
-      }  
-    } 
-    if (arg == "--debug") {
-      if (i + 1 < argc) { 
-          first = argv[i+1][0];
-          first = toupper(first);
-          if(first == 'Y') {
-            w3rpi_debug = true;
-          } 
-      } else { 
-          std::cerr << "--debug." << std::endl;
-          return 1;
-      }  
-    } 
-    
-  }
-  // wiring Pi startup
-  // if(wiringPiSetupGpio() == -1) {
-  if(wiringPiSetupSys() == -1) {
-    printf("Error during wiringPi Initialization\n");
+
+  // Initialize pigpio.
+  if(gpioInitialise() < 0) {
+    cerr << "pigpio initialization failed" << endl;
     exit(1);
   }
+
+  // Process command-line arguments.
+  for (int i = 1; i < argc; ++i) {
+    string arg = argv[i];
+    if(arg == "-h" || arg == "--help") {
+      show_usage();
+      return 0;
+    }
+    if(arg == "-d" || arg == "--dir-adjustment") {
+      if(i + 1 < argc) {
+          direction = argv[++i];
+      } else {
+          cerr << "--dir-adjustment option requires one argument." << endl;
+          return 1;
+      }
+    }
+    if(arg == "-a" || arg == "--altitude") {
+      if(i + 1 < argc) {
+          altitude = argv[++i];
+      } else {
+          cerr << "--altitude option requires one argument." << endl;
+          return 1;
+      }
+    }
+    if(arg == "-r" || arg == "--radio") {
+      if(i + 1 < argc) {
+          first = argv[++i][0];
+          radio = (toupper(first) == 'Y');
+      } else {
+          cerr << "--radio option requires one argument." << endl;
+          return 1;
+      }
+    }
+    if(arg == "-n" || arg == "--anemometer") {
+      if(i + 1 < argc) {
+          first = argv[++i][0];
+          anemometer = (toupper(first) == 'Y');
+      } else {
+          cerr << "--anemometer option requires one argument." << endl;
+          return 1;
+      }
+    }
+    if(arg == "-p" || arg == "--temperature") {
+      if(i + 1 < argc) {
+          first = argv[++i][0];
+          temperature = (toupper(first) == 'Y');
+      } else {
+          cerr << "--temperature option requires one argument." << endl;
+          return 1;
+      }
+    }
+    if(arg == "-o" || arg == "--solar") {
+      if(i + 1 < argc) {
+          first = argv[++i][0];
+          solar = (toupper(first) == 'Y');
+      } else {
+          cerr << "--solar option requires one argument." << endl;
+          return 1;
+      }
+    }
+    if(arg == "-l" || arg == "--log") {
+      if(i + 1 < argc) {
+          log = argv[++i];
+      } else {
+          cerr << "--log option requires one argument." << endl;
+          return 1;
+      }
+    }
+    if(arg == "-t" || arg == "--tmp") {
+      if(i + 1 < argc) {
+          tmp = argv[++i];
+      } else {
+          cerr << "--tmp option requires one argument." << endl;
+          return 1;
+      }
+    }
+    if(arg == "--debug") {
+      if(i + 1 < argc) {
+          first = argv[++i][0];
+          w3rpi_debug = (toupper(first) == 'Y');
+      } else {
+          cerr << "--debug option requires one argument." << endl;
+          return 1;
+      }
+    }
+  }
+
+  // Initialize singleton and event manager.
   Singleton::init();
-  // Create Register event right after initialization
   int iAltitude = atoi(altitude.c_str());
   int iDirection = atoi(direction.c_str());
   Singleton::get()->getEventManager()->init(log, tmp, iAltitude, iDirection, radio, temperature, anemometer, solar);
-  // write information to log
-  // printf("w3rpi Version (%d.%d) Branch (%s) Build date(%u)",W3RPI_VERSION_MAJOR,W3RPI_VERSION_MINOR,W3RPI_VERSION_BRANCH,&W3RPI_BUILD_DATE);
-  // printf("w3rpi Initialize log:%s, tmp:%s, altitude:%d, direction:%d, 433:%u, Temp:%u, Anemo:%u, Solar: %u, Debug: %u",log.c_str(),tmp.c_str(),iAltitude,iDirection,radio,temperature,anemometer,solar,w3rpi_debug);
-  // Wind Speed
+
+  // Setup anemometer interrupt if enabled.
   if(anemometer) {
-    pinMode(17,INPUT);
-    wiringPiISR(17, INT_EDGE_RISING, &count);
+    gpioSetMode(17, PI_INPUT);
+    // Use pigpio alert function for pin 17.
+    gpioSetAlertFunc(17, reinterpret_cast<gpioAlertFunc_t>(&count));
   }
-  //    
-  // infinite loop
+
+  // Enter main loop for 433MHz reception (this call blocks until termination).
   Singleton::get()->getCore433()->loop();
-  // loop ended, then
-  printf("w3rpi END ****************");
+
+  cerr << "w3rpi END ****************" << endl;
   delete Singleton::get();
-  if(anemometer) wiringPiISR(17, INT_EDGE_RISING, &handleNoInterrupt);
+
+  if(anemometer)
+    gpioSetAlertFunc(17, NULL);
+
+  gpioTerminate();
   exit(0);
 }

@@ -11,7 +11,7 @@ NOTUSEDTRFLAGS = -DTRACECORE433 -DTRACEEVENTMNG -DTRACESINGLETON -DTRACERCOOK -D
 
 LDFLAGS += -Xlinker --defsym -Xlinker W3RPI_BUILD_DATE=$$(date +'%Y%m%d') 
 LDFLAGS += -L../../lib/ina219 -lina219 -L../../lib/ads1015 -L../../lib/bmp280
-LDFLAGS += -lwiringPi -lsqlite3 -lpthread
+LDFLAGS += -lpigpio -lsqlite3 -lpthread
 
 project_dir = ./
 project_files = ./switch_433.cpp ./ook_433.cpp ./oregon.cpp ./core_433.cpp ./eventManager.cpp ./singleton.cpp

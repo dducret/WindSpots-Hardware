@@ -1,4 +1,3 @@
-// eventManager.h
 #ifndef EVENTMANAGER_H_
 #define EVENTMANAGER_H_
 #include <pthread.h>
@@ -9,13 +8,13 @@
 #include "../lib/bmp280/bmp280.h"
 #include "../lib/ina219/ina219.h"
 #include "../lib/ads1015/ads1015.h"
+
 #define w3rpi_EVENT_NONE        0
-// Receiving a sensor Data
 #define w3rpi_EVENT_INIT        1
 #define w3rpi_EVENT_GETSENSORDATA   2
-// Maximum size for an event message
-#define w3rpi_EVENT_MAX_SIZE      8192
+#define w3rpi_EVENT_MAX_SIZE      1024  // Maximum event message size
 #define MESSAGE_SIZE      256
+
 class EventManager {
   private:
     class Event {
@@ -23,11 +22,14 @@ class EventManager {
         int eventType;
         char strValue[w3rpi_EVENT_MAX_SIZE];
     };
-    std::list<Event> eventList;     // event queue
-    pthread_t      myThread;      // Thread structure
-    pthread_mutex_t  eventListMutex;  // ensure queuing / dequeuing well managed
+    std::list<Event> eventList;           // Event queue
+    pthread_t      myThread;              // Thread handle
+    pthread_mutex_t  eventListMutex;       // Mutex for queue
+    pthread_cond_t   eventCond;            // Condition variable for new events
     char * piId;
-    static void * eventLoop(void *);  // Thread function
+    volatile bool running;                // Flag to control thread loop
+
+    static void * eventLoop(void *);
     std::string logFileName;
     std::string tmpFileName;
     char message[MESSAGE_SIZE];
@@ -40,9 +42,7 @@ class EventManager {
     bool bDebug;
     bmp280 *myBmp280; 
     ina219 *inaBattery0;
-    ina219 *inaBattery1;
     ina219 *inaSolar0;
-    ina219 *inaSolar1;
     ina219 *ina5v;
     ads1015 *ads;
 
@@ -59,7 +59,7 @@ class EventManager {
     ~EventManager();
     bool init(std::string log, std::string tmp, int altitude, int direction, bool radio, bool temperature, bool anemometer, bool solar);
     void logIt();
-    void enqueue(int newEvent, char * _strValue);     // Add an event with eventQueue type
+    void enqueue(int newEvent, char * _strValue);
     void anemometerAdd();
     int readadc(int port);
     double getWindDirection();
