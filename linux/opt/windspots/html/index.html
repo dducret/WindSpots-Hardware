@@ -15,8 +15,6 @@
 </head>
 
 <body id="page-top" class="index" onload="setValue()">
-
-
     <main>
       <div class="container">
 
@@ -39,7 +37,7 @@
 
         <div class="row">
 
-          <div id="petitePatateContnair" class="col-md-4">
+          <div id="petitePatateContainer" class="col-md-4">
             <svg style="height: 20vw" id="laPetitePatate" width="300" height="300" viewbox="0 0 300 300">
               <circle cx="150" cy="150" r="100" />
               <circle cx="150" cy="150" r="110" />
@@ -48,33 +46,28 @@
               <line x1="79.28" y1="79.28" x2="220.71" y2="220.71"/>
               <line x1="79.28" y1="220.71" x2="220.71" y2="79.28"/>
               <polygon id="windArrow" points="150,50 210,230 150,200 90,230"/>
-              <text x="150" y="20" fill="red" text-anchor="middle">N</text>
-              <text class="txtLight" x="250" y="60" fill="red" text-anchor="middle">NE</text>
-              <text x="280" y="150" fill="red" text-anchor="middle">E</text>
+              <text class="txtBold"  x="150" y="20"  fill="red" text-anchor="middle">N</text>
+              <text class="txtLight" x="250" y="60"  fill="red" text-anchor="middle">NE</text>
+              <text class="txtBold"  x="280" y="150" fill="red" text-anchor="middle">E</text>
               <text class="txtLight" x="250" y="250" fill="red" text-anchor="middle">SE</text>
-              <text x="150" y="300" fill="red" text-anchor="middle">S</text>
-              <text class="txtLight" x="45" y="250" fill="red" text-anchor="middle">SO</text>
-              <text x="20" y="150" fill="red" text-anchor="middle">O</text>
-              <text class="txtLight" x="45" y="60" fill="red" text-anchor="middle">NO</text>
+              <text class="txtBold"  x="150" y="300" fill="red" text-anchor="middle">S</text>
+              <text class="txtLight" x="45"  y="250" fill="red" text-anchor="middle">SO</text>
+              <text class="txtBold"  x="20"  y="150" fill="red" text-anchor="middle">O</text>
+              <text class="txtLight" x="45"  y="60"  fill="red" text-anchor="middle">NO</text>
             </svg>
           </div>
 
           <div class="col-md-4 textCenter">
-          	<div class="innerRow">
-            	<div id="hour">19:19</div>
+            <div class="innerRow">
+              <div id="hour">19:19</div>
             </div>
             <div class="innerRow">
-            	<div id="date">12 juin 2017</div>
+              <div id="date">12 juin 2017</div>
             </div>
-          	<div class="innerRow">
-              <div class="col-xs-4 textRight">
-                &nbsp;
-              </div>
-              <div class="col-xs-8">
-                <span></span>
-              </div>
-            </div>
-						<div class="innerRow">
+          </div>
+              
+          <div id="infosSpot" class="col-md-4 textCenter">
+            <div class="innerRow">
               <div class="col-xs-4 textRight">
                 Direction:
               </div>
@@ -88,12 +81,9 @@
                 Gust:
               </div>
               <div class="col-xs-8">
-                <span id="rafal"></span>
+                <span id="rafale"></span>
               </div>
             </div>
-					</div>
-              
-          <div id="infosSpot" class="col-md-4">
 
             <div class="innerRow">
               <div class="col-xs-4 textRight">
@@ -103,8 +93,8 @@
                 <span></span>
               </div>
             </div>
-						
-						  <div class="innerRow">
+
+              <div class="innerRow">
                 <div class="col-xs-4 textRight">
                   Temperature:
                 </div>
@@ -141,7 +131,7 @@
        <div class="container">
         <div class="row">
           <div class="col-md-6 copyright">
-            Copyright (c) WindSpots 2026
+            Copyright &copy; Windspots 2018
           </div>
           <div class="col-md-6 ">
             <div class="footerVersion" id="version"></div>
@@ -166,7 +156,7 @@
     var windDirection=110;
     var humidity=11;
     var temperature=30;
-    var rafal=15;
+    var rafale=15;
     var nmMb=1006;
 
     var nbRefresh = 0;
@@ -191,13 +181,13 @@
               } else {
                 windArrow.setAttribute('style','fill:#8a3030;-ms-transform: rotate(deg);-webkit-transform: rotate(0deg); transform: rotate(0deg);');
               }
-              document.getElementById('windDirection').innerHTML=weather.dir+'?';
-              document.getElementById('rafal').innerHTML=weather.speed+' Km/h';
+              document.getElementById('windDirection').innerHTML=weather.dir+'&deg;';
+              document.getElementById('rafale').innerHTML=weather.speed+' Km/h';
             }
             if(weather.humidity != 0)
               document.getElementById('humidity').innerHTML=weather.humidity+'%';
             if(weather.temperature != 0)
-              document.getElementById('temperature').innerHTML=weather.temperature+'?C';
+              document.getElementById('temperature').innerHTML=weather.temperature+'&deg;C';
             if(weather.barometer != 0)
               document.getElementById('nmMb').innerHTML=weather.barometer+' mb';
           
@@ -224,10 +214,10 @@
         }
         document.getElementsByTagName('title')[0].innerHTML='WS: '+stationValue;
         document.getElementById('stationName').innerHTML=stationName;
-        document.getElementById('windDirection').innerHTML=windDirection+'?';
+        document.getElementById('windDirection').innerHTML=windDirection+'&deg;';
         document.getElementById('humidity').innerHTML=humidity+'%';
-        document.getElementById('temperature').innerHTML=temperature+'?C';
-        document.getElementById('rafal').innerHTML=rafal+'Km/h';
+        document.getElementById('temperature').innerHTML=temperature+'&deg;C';
+        document.getElementById('rafale').innerHTML=rafale+'Km/h';
         document.getElementById('nmMb').innerHTML=nmMb+'Mb';
         document.getElementById('version').innerHTML="Version: "+version;
         
