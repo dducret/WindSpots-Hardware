@@ -1,0 +1,241 @@
+/* Windspots front-end styles (Bootstrap removed) */
+* , *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+main, header, footer, section, article, nav {
+  display: block;
+}
+
+img, svg {
+  max-width: 100%;
+}
+
+.container {
+  width: 95%;
+  max-width: 1170px;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: -15px;
+  margin-right: -15px;
+}
+
+[class^="col-"] {
+  width: 100%;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.col-xs-4 { width: 33.3333%; }
+.col-xs-8 { width: 66.6667%; }
+.col-xs-12 { width: 100%; }
+
+@media (min-width: 992px) {
+  .col-md-4 { width: 33.3333%; }
+  .col-md-6 { width: 50%; }
+  .col-md-8 { width: 66.6667%; }
+  .col-md-12 { width: 100%; }
+}
+
+.textRight { text-align: right; }
+.textLeft { text-align: left; }
+.textCenter { text-align: center; }
+
+body{
+  background: white;
+  color: rgba(42,73,153,1);
+  font-size:calc(8px + 1vw);
+}
+input{
+  width: 100%;
+  background: none;
+  border: 2px solid rgba(42,73,153,1);
+  height: 40px;
+  padding-left: 9px;
+  color: rgba(42,73,153,1); /* rgba(255,255,255,0.6);*/
+}
+input:focus{
+  color: rgba(42,73,153,1);
+  -webkit-transition: .2s;
+  transition: .2s;
+}
+h1{
+  font-size:calc(8px + 1.5vw);
+}
+label{
+  font-weight: 300;
+}
+main .container,header .container,footer .container{
+  padding: 0;
+  box-shadow: 0 0 25px rgba(0,0,0,0.5);
+}
+footer .container{
+  padding: calc(5px + 0.8vw);
+}
+ 
+#imgContainer{
+  width: 100%;
+  overflow: hidden;
+}
+#spotImg {
+  padding-top: 24%; /* image Aspect Ratio */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+ 
+#showRotateValue{
+  text-shadow:0 0 5px rgba(0,0,0,0.9);
+  font-size:24px;
+  position: absolute;
+  z-index: 99;
+  left: 50%;
+  top: 10px;
+}
+ 
+.square{
+  border: 2px solid rgba(42,73,153,1);
+  padding: 5px;
+  margin-left: 14px;
+  min-width: 48px;
+  display: inline-block;
+  text-align: center;
+}
+.squareVolt{
+  font-size: 18px;
+  min-width: 115px;
+  text-align: center;
+}
+.noPad{
+  padding: 0;
+}
+#cameraRotationValue{
+  border: none;
+}
+header .container{
+  padding: 16px 0;
+}
+@media(max-width:450px){
+  .apllyBtn{
+    position: fixed;
+    width: 100%;
+    bottom: 0;
+    height: 46px;
+    right: 0;
+  }
+}
+ 
+@media(max-width:550px){
+  body{
+    font-size:calc(8px + 1vw);
+  }
+}
+ 
+/* ------------------------ */
+#imgContainer{
+  margin-bottom: 3vw;
+}
+footer{
+  margin-top: 32px;
+}
+.innerRow{
+  min-height: 3vw;
+}
+main .row {
+    margin-bottom: 0;
+}
+svg{
+  display:block;
+  margin-left: auto;
+  margin-right: auto;
+}
+circle,polygon{
+  stroke:rgba(42,73,153,1);
+  stroke-width:2;
+  fill:none;
+}
+line{
+  stroke:rgba(42,73,153,1);
+  stroke-width:2;
+}
+text{
+  fill:rgba(42,73,153,1);
+  font-weight: bold;
+}
+ 
+#windArrow{
+  transform-origin: 150px 150px;
+  -ms-transform-origin: 150px 150px;
+  -webkit-transform-origin: 150px 150px;
+}
+.txtLight{
+  font-weight: 300;
+  font-size:24px;
+}
+.txtBold{
+  font-weight: 600;
+  font-size:26px;
+}
+#stationName{
+  text-transform: uppercase;
+  font-size:calc(8px + 1.5vw);
+}
+#date {
+  margin: 0.5vw 0;
+  font-size:calc(8px + 1.5vw);
+  display: inline-block;
+  padding: 0 1vw;
+  line-height: 1px;
+ 
+}
+#hour{
+  margin: 2vw;
+  font-size:calc(8px + 1.5vw);
+  display: inline-block;
+  padding: 0;
+  line-height: 1px;
+}
+ 
+hr{
+  border-top: none;
+  border-bottom: 2px solid rgba(255,255,255,0.8);
+}
+ 
+#infosSpot .square{
+  display: inline-block;
+  width: 80%;
+}
+#logoWs{
+  margin-top: 32px;
+}
+.innerRow {
+    min-height: 4vh;
+}
+.footerVersion{
+  text-align: right;
+}
+#petitePatateContainer{
+  margin-bottom: calc(8px + 1vw);
+}
+@media(max-width: 992px){
+  footer .copyright{
+    text-align: center;
+  }
+  .footerVersion{
+    text-align: center;
+  }
+  #infosSpot{
+    margin-top: 32px;
+  }
+}
