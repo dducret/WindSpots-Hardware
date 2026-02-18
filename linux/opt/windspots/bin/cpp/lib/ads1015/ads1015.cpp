@@ -1,242 +1,325 @@
 #include "ads1015.h"
-int i2cHandle;
-//
-static void beginTransmission(uint8_t i2cAddress) {
-  // Create the file descriptor for the i2c bus
-  i2cHandle = open("/dev/i2c-1", O_RDWR);
-  if(i2cHandle < 0) {
-    fprintf(stdout, "Error while opening the i2c-2 device! Error: %s\n", strerror(errno));
-    return;
-  }
-  // Set the slave address
-  if(ioctl(i2cHandle, I2C_SLAVE, i2cAddress) < 0) {
-    fprintf(stdout, "Error while configuring the slave address %d. Error: %s\n", i2cAddress, strerror(errno));
-    return;
-  }
+
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+
+#include <fcntl.h>
+#include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+namespace {
+
+// Path to I²C bus on Raspberry Pi
+constexpr const char* I2C_DEVICE = "/dev/i2c-1";
+
+// File descriptor used during a transaction
+int i2cHandle = -1;
+
+bool beginTransmission(uint8_t i2cAddress)
+{
+    i2cHandle = open(I2C_DEVICE, O_RDWR);
+    if (i2cHandle < 0) {
+        std::fprintf(stderr,
+                     "ADS1015: failed to open %s: %s\n",
+                     I2C_DEVICE, std::strerror(errno));
+        return false;
+    }
+
+    if (ioctl(i2cHandle, I2C_SLAVE, i2cAddress) < 0) {
+        std::fprintf(stderr,
+                     "ADS1015: failed to select slave 0x%02X on %s: %s\n",
+                     i2cAddress, I2C_DEVICE, std::strerror(errno));
+        close(i2cHandle);
+        i2cHandle = -1;
+        return false;
+    }
+
+    return true;
 }
-static void endTransmission(void) {
-  close(i2cHandle);
+
+void endTransmission()
+{
+    if (i2cHandle >= 0) {
+        close(i2cHandle);
+        i2cHandle = -1;
+    }
 }
-static void writeRegister(uint8_t i2cAddress, uint8_t reg, uint16_t value) {
-  uint8_t lsb = (uint8_t)(value >> 8);
-  uint8_t msb = (uint8_t)value;
-  uint16_t payload = (msb << 8) | lsb; 
-  beginTransmission(i2cAddress);
-  i2c_smbus_write_word_data(i2cHandle, reg, payload);
-  endTransmission();
+
+// Convert between ADS1015 MSB-first and SMBus LSB-first word layout
+inline uint16_t swapBytes(uint16_t value)
+{
+    uint8_t msb = static_cast<uint8_t>(value >> 8);
+    uint8_t lsb = static_cast<uint8_t>(value & 0xFF);
+    return static_cast<uint16_t>((lsb << 8) | msb);
 }
-static uint16_t readRegister(uint8_t i2cAddress, uint8_t reg) {
-  beginTransmission(i2cAddress);
-  uint16_t res = i2c_smbus_read_word_data(i2cHandle, reg);
-  endTransmission();
-  uint8_t msb = (uint8_t)res;
-  uint8_t lsb = (uint8_t)(res >> 8);
-  return (msb << 8) | lsb;
+
+// Common base config for single-shot conversions
+inline uint16_t makeSingleShotConfig(adsGain_t gain, adsSps_t sps)
+{
+    return static_cast<uint16_t>(
+        ADS1015_REG_CONFIG_CQUE_NONE    | // Disable comparator
+        ADS1015_REG_CONFIG_CLAT_NONLAT  | // Non-latching
+        ADS1015_REG_CONFIG_CPOL_ACTVLOW | // ALERT/RDY active low
+        ADS1015_REG_CONFIG_CMODE_TRAD   | // Traditional comparator
+        ADS1015_REG_CONFIG_MODE_SINGLE  | // Single-shot mode
+        gain                            | // PGA / voltage range
+        sps                             | // Sample rate
+        ADS1015_REG_CONFIG_OS_SINGLE      // Start single conversion
+    );
 }
-ads1015::ads1015(uint8_t i2cAddress) {
-  m_i2cAddress = i2cAddress;
-  m_bitShift = 4;
-  m_gain = GAIN_TWOTHIRDS; /* +/- 6.144V range (limited to VDD +0.3V max!) */
-  m_sps  = SPS_1600;
-  setConversionDelay();
+
+} // namespace
+
+// ---- Low-level register helpers ----------------------------------------
+
+static void writeRegister(uint8_t i2cAddress, uint8_t reg, uint16_t value)
+{
+    if (!beginTransmission(i2cAddress)) {
+        return;
+    }
+
+    // SMBus sends low byte first, ADS1015 expects MSB first → swap
+    const uint16_t payload = swapBytes(value);
+
+    const int rc = i2c_smbus_write_word_data(i2cHandle, reg, payload);
+    if (rc < 0) {
+        std::fprintf(stderr,
+                     "ADS1015: write failure to reg 0x%02X: %s\n",
+                     reg, std::strerror(errno));
+    }
+
+    endTransmission();
 }
-void ads1015::setGain(adsGain_t gain){
-  m_gain = gain;
+
+static uint16_t readRegister(uint8_t i2cAddress, uint8_t reg)
+{
+    if (!beginTransmission(i2cAddress)) {
+        return 0;
+    }
+
+    const int rc = i2c_smbus_read_word_data(i2cHandle, reg);
+    if (rc < 0) {
+        std::fprintf(stderr,
+                     "ADS1015: read failure from reg 0x%02X: %s\n",
+                     reg, std::strerror(errno));
+        endTransmission();
+        return 0;
+    }
+
+    endTransmission();
+
+    // SMBus returns LSB-first; convert back to MSB-first
+    const uint16_t raw = static_cast<uint16_t>(rc);
+    return swapBytes(raw);
 }
-adsGain_t ads1015::getGain(){
-  return m_gain;
+
+// ---- ads1015 class implementation --------------------------------------
+
+ads1015::ads1015(uint8_t i2cAddress)
+{
+    m_i2cAddress = i2cAddress;
+    m_bitShift   = 4;                    // ADS1015: 12-bit result (shift by 4)
+    m_gain       = GAIN_TWOTHIRDS;       // +/- 6.144V (limited by VDD)
+    m_sps        = SPS_1600;             // Reasonable default
+    setConversionDelay();
 }
-void ads1015::setSps(adsSps_t sps) {
-  m_sps = sps;
-  setConversionDelay();
+
+void ads1015::setGain(adsGain_t gain)
+{
+    m_gain = gain;
 }
-adsSps_t ads1015::getSps(){
-  return m_sps;
+
+adsGain_t ads1015::getGain()
+{
+    return m_gain;
 }
-uint16_t ads1015::readADC_SingleEnded(uint8_t channel) {
-  if (channel > 3) {
-    return 0;
-  }
-  // Start with default values
-  uint16_t config = ADS1015_REG_CONFIG_CQUE_NONE    | // Disable the comparator (default val)
-                    ADS1015_REG_CONFIG_CLAT_NONLAT  | // Non-latching (default val)
-                    ADS1015_REG_CONFIG_CPOL_ACTVLOW | // Alert/Rdy active low   (default val)
-                    ADS1015_REG_CONFIG_CMODE_TRAD   | // Traditional comparator (default val)
-                    ADS1015_REG_CONFIG_MODE_SINGLE;   // Single-shot mode (default)
-  // Set PGA/voltage range
-  config |= m_gain;
-  // Set the sample rate
-  config |= m_sps;
-  // Set single-ended input channel
-  switch (channel) {
-    case (0):
-      config |= ADS1015_REG_CONFIG_MUX_SINGLE_0;
-      break;
-    case (1):
-      config |= ADS1015_REG_CONFIG_MUX_SINGLE_1;
-      break;
-    case (2):
-      config |= ADS1015_REG_CONFIG_MUX_SINGLE_2;
-      break;
-    case (3):
-      config |= ADS1015_REG_CONFIG_MUX_SINGLE_3;
-      break;
-  }
-  // Set 'start single-conversion' bit
-  config |= ADS1015_REG_CONFIG_OS_SINGLE;
-  // Write config register to the ADC
-  writeRegister(m_i2cAddress, ADS1015_REG_POINTER_CONFIG, config);
-  // Wait for the conversion to complete
-  usleep(m_conversionDelay);
-  // Read the conversion results
-  // Shift 12-bit results right 4 bits for the ADS1015
-  return readRegister(m_i2cAddress, ADS1015_REG_POINTER_CONVERT) >> m_bitShift;  
+
+void ads1015::setSps(adsSps_t sps)
+{
+    m_sps = sps;
+    setConversionDelay();
 }
-int16_t ads1015::readADC_Differential_0_1() {
-  // Start with default values
-  uint16_t config = ADS1015_REG_CONFIG_CQUE_NONE    | // Disable the comparator (default val)
-                    ADS1015_REG_CONFIG_CLAT_NONLAT  | // Non-latching (default val)
-                    ADS1015_REG_CONFIG_CPOL_ACTVLOW | // Alert/Rdy active low   (default val)
-                    ADS1015_REG_CONFIG_CMODE_TRAD   | // Traditional comparator (default val)
-                    ADS1015_REG_CONFIG_MODE_SINGLE;   // Single-shot mode (default)
-  // Set PGA/voltage range
-  config |= m_gain;
-  // Set the sample rate
-  config |= m_sps;
-  // Set channels
-  config |= ADS1015_REG_CONFIG_MUX_DIFF_0_1;          // AIN0 = P, AIN1 = N
-  // Set 'start single-conversion' bit
-  config |= ADS1015_REG_CONFIG_OS_SINGLE;
-  // Write config register to the ADC
-  writeRegister(m_i2cAddress, ADS1015_REG_POINTER_CONFIG, config);
-  // Wait for the conversion to complete
-  usleep(m_conversionDelay);
-  // Read the conversion results
-  uint16_t res = readRegister(m_i2cAddress, ADS1015_REG_POINTER_CONVERT) >> m_bitShift;
-  if (m_bitShift == 0) {
-    return (int16_t)res;
-  } else {
-    // Shift 12-bit results right 4 bits for the ADS1015,
-    // making sure we keep the sign bit intact
+
+adsSps_t ads1015::getSps()
+{
+    return m_sps;
+}
+
+uint16_t ads1015::readADC_SingleEnded(uint8_t channel)
+{
+    if (channel > 3) {
+        std::fprintf(stderr, "ADS1015: invalid single-ended channel %u\n", channel);
+        return 0;
+    }
+
+    uint16_t config = makeSingleShotConfig(m_gain, m_sps);
+
+    // Select input channel
+    switch (channel) {
+        case 0:
+            config |= ADS1015_REG_CONFIG_MUX_SINGLE_0;
+            break;
+        case 1:
+            config |= ADS1015_REG_CONFIG_MUX_SINGLE_1;
+            break;
+        case 2:
+            config |= ADS1015_REG_CONFIG_MUX_SINGLE_2;
+            break;
+        case 3:
+            config |= ADS1015_REG_CONFIG_MUX_SINGLE_3;
+            break;
+        default:
+            // Should not happen due to check above
+            return 0;
+    }
+
+    // Write config register and wait for conversion
+    writeRegister(m_i2cAddress, ADS1015_REG_POINTER_CONFIG, config);
+    usleep(m_conversionDelay);
+
+    // Read conversion result and shift to 12 bits for ADS1015
+    return readRegister(m_i2cAddress, ADS1015_REG_POINTER_CONVERT) >> m_bitShift;
+}
+
+int16_t ads1015::readADC_Differential_0_1()
+{
+    uint16_t config = makeSingleShotConfig(m_gain, m_sps);
+
+    // AIN0 = P, AIN1 = N
+    config |= ADS1015_REG_CONFIG_MUX_DIFF_0_1;
+
+    writeRegister(m_i2cAddress, ADS1015_REG_POINTER_CONFIG, config);
+    usleep(m_conversionDelay);
+
+    uint16_t res = readRegister(m_i2cAddress, ADS1015_REG_POINTER_CONVERT) >> m_bitShift;
+
+    if (m_bitShift == 0) {
+        return static_cast<int16_t>(res);
+    }
+
+    // For ADS1015: 12-bit data, sign extend if negative
     if (res > 0x07FF) {
-      // negative number - extend the sign to 16th bit
-      res |= 0xF000;
+        res |= 0xF000;
     }
-    return (int16_t)res;
-  }
+    return static_cast<int16_t>(res);
 }
-int16_t ads1015::readADC_Differential_2_3() {
-  // Start with default values
-  uint16_t config = ADS1015_REG_CONFIG_CQUE_NONE    | // Disable the comparator (default val)
-                    ADS1015_REG_CONFIG_CLAT_NONLAT  | // Non-latching (default val)
-                    ADS1015_REG_CONFIG_CPOL_ACTVLOW | // Alert/Rdy active low   (default val)
-                    ADS1015_REG_CONFIG_CMODE_TRAD   | // Traditional comparator (default val)
-                    ADS1015_REG_CONFIG_MODE_SINGLE;   // Single-shot mode (default)
-  // Set PGA/voltage range
-  config |= m_gain;
-  // Set the sample rate
-  config |= m_sps;
-  // Set channels
-  config |= ADS1015_REG_CONFIG_MUX_DIFF_2_3;          // AIN2 = P, AIN3 = N
-  // Set 'start single-conversion' bit
-  config |= ADS1015_REG_CONFIG_OS_SINGLE;
-  // Write config register to the ADC
-  writeRegister(m_i2cAddress, ADS1015_REG_POINTER_CONFIG, config);
-  // Wait for the conversion to complete
-  usleep(m_conversionDelay);
-  // Read the conversion results
-  uint16_t res = readRegister(m_i2cAddress, ADS1015_REG_POINTER_CONVERT) >> m_bitShift;
-  if (m_bitShift == 0) {
-    return (int16_t)res;
-  } else {
-    // Shift 12-bit results right 4 bits for the ADS1015,
-    // making sure we keep the sign bit intact
+
+int16_t ads1015::readADC_Differential_2_3()
+{
+    uint16_t config = makeSingleShotConfig(m_gain, m_sps);
+
+    // AIN2 = P, AIN3 = N
+    config |= ADS1015_REG_CONFIG_MUX_DIFF_2_3;
+
+    writeRegister(m_i2cAddress, ADS1015_REG_POINTER_CONFIG, config);
+    usleep(m_conversionDelay);
+
+    uint16_t res = readRegister(m_i2cAddress, ADS1015_REG_POINTER_CONVERT) >> m_bitShift;
+
+    if (m_bitShift == 0) {
+        return static_cast<int16_t>(res);
+    }
+
+    // For ADS1015: 12-bit data, sign extend if negative
     if (res > 0x07FF) {
-      // negative number - extend the sign to 16th bit
-      res |= 0xF000;
+        res |= 0xF000;
     }
-    return (int16_t)res;
-  }
+    return static_cast<int16_t>(res);
 }
-void ads1015::startComparator_SingleEnded(uint8_t channel, int16_t threshold) {
-  // Start with default values
-  uint16_t config = ADS1015_REG_CONFIG_CQUE_1CONV   | // Comparator enabled and asserts on 1 match
-                    ADS1015_REG_CONFIG_CLAT_LATCH   | // Latching mode
-                    ADS1015_REG_CONFIG_CPOL_ACTVLOW | // Alert/Rdy active low   (default val)
-                    ADS1015_REG_CONFIG_CMODE_TRAD   | // Traditional comparator (default val)
-                    ADS1015_REG_CONFIG_MODE_CONTIN  | // Continuous conversion mode
-                    ADS1015_REG_CONFIG_MODE_CONTIN;   // Continuous conversion mode
-  // Set PGA/voltage range
-  config |= m_gain;
-  // Set the sample rate
-  config |= m_sps;
-  // Set single-ended input channel
-  switch (channel) {
-    case (0):
-      config |= ADS1015_REG_CONFIG_MUX_SINGLE_0;
-      break;
-    case (1):
-      config |= ADS1015_REG_CONFIG_MUX_SINGLE_1;
-      break;
-    case (2):
-      config |= ADS1015_REG_CONFIG_MUX_SINGLE_2;
-      break;
-    case (3):
-      config |= ADS1015_REG_CONFIG_MUX_SINGLE_3;
-      break;
-  }
-  // Set the high threshold register
-  // Shift 12-bit results left 4 bits for the ADS1015
-  writeRegister(m_i2cAddress, ADS1015_REG_POINTER_HITHRESH, threshold << m_bitShift);
-  // Write config register to the ADC
-  writeRegister(m_i2cAddress, ADS1015_REG_POINTER_CONFIG, config);
-}
-int16_t ads1015::getLastConversionResults() {
-  // Wait for the conversion to complete
-  usleep(m_conversionDelay);
-  // Read the conversion results
-  uint16_t res = readRegister(m_i2cAddress, ADS1015_REG_POINTER_CONVERT) >> m_bitShift;
-  if (m_bitShift == 0) {
-    return (int16_t)res;
-  } else {
-    // Shift 12-bit results right 4 bits for the ADS1015,
-    // making sure we keep the sign bit intact
-    if (res > 0x07FF){
-      // negative number - extend the sign to 16th bit
-      res |= 0xF000;
+
+void ads1015::startComparator_SingleEnded(uint8_t channel, int16_t threshold)
+{
+    if (channel > 3) {
+        std::fprintf(stderr, "ADS1015: invalid comparator channel %u\n", channel);
+        return;
     }
-    return (int16_t)res;
-  }
+
+    uint16_t config =
+        ADS1015_REG_CONFIG_CQUE_1CONV   | // Comparator enabled, assert on 1 match
+        ADS1015_REG_CONFIG_CLAT_LATCH   | // Latching comparator
+        ADS1015_REG_CONFIG_CPOL_ACTVLOW | // ALERT/RDY active low
+        ADS1015_REG_CONFIG_CMODE_TRAD   | // Traditional comparator
+        ADS1015_REG_CONFIG_MODE_CONTIN;   // Continuous conversion mode
+
+    // PGA and data rate
+    config |= m_gain;
+    config |= m_sps;
+
+    // Select channel
+    switch (channel) {
+        case 0:
+            config |= ADS1015_REG_CONFIG_MUX_SINGLE_0;
+            break;
+        case 1:
+            config |= ADS1015_REG_CONFIG_MUX_SINGLE_1;
+            break;
+        case 2:
+            config |= ADS1015_REG_CONFIG_MUX_SINGLE_2;
+            break;
+        case 3:
+            config |= ADS1015_REG_CONFIG_MUX_SINGLE_3;
+            break;
+    }
+
+    // High threshold – shift 12-bit threshold left for ADS1015
+    writeRegister(m_i2cAddress, ADS1015_REG_POINTER_HITHRESH,
+                  static_cast<uint16_t>(threshold) << m_bitShift);
+
+    // Start continuous conversions with comparator
+    writeRegister(m_i2cAddress, ADS1015_REG_POINTER_CONFIG, config);
 }
-void ads1015::setConversionDelay() {
-  switch(m_sps) {
-    case SPS_128:
-      m_conversionDelay = 1000000 / 128;
-      break;
-    case SPS_250:
-      m_conversionDelay = 1000000 / 250;
-      break;
-    case SPS_490:
-      m_conversionDelay = 1000000 / 490;
-      break;
-    case SPS_920:
-      m_conversionDelay = 1000000 / 920;
-      break;
-    case SPS_1600:
-      m_conversionDelay = 1000000 / 1600;
-      break;
-    case SPS_2400:
-      m_conversionDelay = 1000000 / 2400;
-      break;
-    case SPS_3300:
-      m_conversionDelay = 1000000 / 3300;
-      break;
-    case SPS_860:
-      m_conversionDelay = 1000000 / 3300;
-      break;
-    default:
-      m_conversionDelay = 8000;
-      break;
-  }
-  m_conversionDelay += 100; // Add 100 us to be safe
+
+int16_t ads1015::getLastConversionResults()
+{
+    usleep(m_conversionDelay);
+
+    uint16_t res = readRegister(m_i2cAddress, ADS1015_REG_POINTER_CONVERT) >> m_bitShift;
+
+    if (m_bitShift == 0) {
+        return static_cast<int16_t>(res);
+    }
+
+    // For ADS1015: 12-bit data, sign extend if negative
+    if (res > 0x07FF) {
+        res |= 0xF000;
+    }
+    return static_cast<int16_t>(res);
+}
+
+void ads1015::setConversionDelay()
+{
+    // Conversion delay in microseconds: 1e6 / SPS, plus small margin
+    switch (m_sps) {
+        case SPS_128:
+            m_conversionDelay = 1000000 / 128;
+            break;
+        case SPS_250:
+            m_conversionDelay = 1000000 / 250;
+            break;
+        case SPS_490:
+            m_conversionDelay = 1000000 / 490;
+            break;
+        case SPS_920:
+            m_conversionDelay = 1000000 / 920;
+            break;
+        case SPS_1600:
+            m_conversionDelay = 1000000 / 1600;
+            break;
+        case SPS_2400:
+            m_conversionDelay = 1000000 / 2400;
+            break;
+        case SPS_3300:
+            m_conversionDelay = 1000000 / 3300;
+            break;
+        case SPS_860:          // Typically ADS1115, but handle if present in your enum
+            m_conversionDelay = 1000000 / 860;
+            break;
+        default:
+            m_conversionDelay = 8000; // Fallback
+            break;
+    }
+
+    m_conversionDelay += 100; // Add 100 µs safety margin
 }
