@@ -1,26 +1,45 @@
 <?php
-//
+// Improved WPA configuration generator.
+// This script builds the wpa_supplicant configuration by reading SSID and passphrase info from a source file.
+
 $wpaFile = '/etc/wpa_supplicant/wpa_supplicant.conf';
-// $wpaFile = '/tmp/wpa_supplicant.conf';
-function add_line($line) {
-	global $wpaFile;
-  $wpa_line = "echo -n '".$line."' >> '".$wpaFile."'";
-  $wpa_result = shell_exec($wpa_line);
-  echo $wpa_result;
+$wpaSourceFile = '/opt/windspots/etc/wpa';
+
+// Base WPA configuration lines
+$wpaConfigLines = [
+    "country=CH",
+    "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev",
+    "update_config=1"
+];
+
+if (file_exists($wpaSourceFile)) {
+    // Read source file without empty lines.
+    $fileArray = file($wpaSourceFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($fileArray as $line) {
+        // Expecting lines in "SSID;passphrase" format.
+        $parts = explode(';', trim($line));
+        if (count($parts) >= 2) {
+            // Sanitize the inputs for shell command.
+            $ssid = escapeshellarg(trim($parts[0]));
+            $passphrase = escapeshellarg(trim($parts[1]));
+            // Generate WPA PSK using the system command.
+            $wpaPSK = shell_exec("wpa_passphrase $ssid $passphrase");
+            if ($wpaPSK !== null) {
+                $wpaConfigLines[] = trim($wpaPSK);
+            }
+        }
+    }
+} else {
+    error_log("WPA source file not found: $wpaSourceFile");
 }
-//$move = "mv  ".$wpaFile." ".$wpaFile.".old";
-//shell_exec($move);
-// $reset = "touch ".$wpaFile;
-$fh = fopen($wpaFile,'w');
-fclose($fh);
-shell_exec($reset);
-add_line("country=CH\r\n");
-add_line("ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\r\n");
-add_line("update_config=1\r\n");
-$file_array = file('/opt/windspots/etc/wpa');
-foreach ($file_array as $line_number =>&$line) {
-    $row=explode(';',$line);
-    $wpa_sup = shell_exec("wpa_passphrase ".$row[0]." ".$row[1]." ");
-    add_line($wpa_sup);
+
+$configContent = implode(PHP_EOL, $wpaConfigLines) . PHP_EOL;
+
+// Write the configuration directly to the file.
+if (file_put_contents($wpaFile, $configContent) === false) {
+    error_log("Failed to write WPA configuration to $wpaFile");
+    echo "Error updating WPA configuration.";
+} else {
+    echo "WPA configuration updated successfully.";
 }
 ?>
