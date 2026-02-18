@@ -11,7 +11,7 @@ NOTUSEDTRFLAGS = -DTRACEEVENTMNG -DTRACESINGLETON -DTRACERCOOK -DTRACESENSOR
 
 LDFLAGS += -Xlinker --defsym -Xlinker W3RPI_BUILD_DATE=$$(date +'%Y%m%d') 
 LDFLAGS += -L../../lib/ina219 -lina219 -L../../lib/ads1015 -L../../lib/bmp280
-LDFLAGS += -lpigpio -lsqlite3 -lpthread
+LDFLAGS += -lsqlite3 -lpthread
 
 project_dir = ./
 project_files = ./eventManager.cpp 
