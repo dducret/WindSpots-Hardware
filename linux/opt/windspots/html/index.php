@@ -15,8 +15,6 @@
 </head>
 
 <body id="page-top" class="index" onload="setValue()">
-
-
     <main>
       <div class="container">
 
@@ -133,7 +131,7 @@
        <div class="container">
         <div class="row">
           <div class="col-md-6 copyright">
-            Copyright &copy; Windspots 2018
+            Copyright &copy; Windspots 2026
           </div>
           <div class="col-md-6 ">
             <div class="footerVersion" id="version"></div>
@@ -155,11 +153,11 @@
     
     var girouetteOn=true;
 
-    var windDirection=110;
-    var humidity=11;
-    var temperature=30;
-    var rafale=15;
-    var nmMb=1006;
+    var windDirection=0;
+    var humidity=0;
+    var temperature=0;
+    var rafale=0;
+    var nmMb=0;
 
     var nbRefresh = 0;
 
@@ -184,7 +182,7 @@
                 windArrow.setAttribute('style','fill:#8a3030;-ms-transform: rotate(deg);-webkit-transform: rotate(0deg); transform: rotate(0deg);');
               }
               document.getElementById('windDirection').innerHTML=weather.dir+'&deg;';
-              document.getElementById('rafale').innerHTML=weather.speed+' Km/h';
+              document.getElementById('rafale').innerHTML=(weather.speed*3.6)+' Km/h';
             }
             if(weather.humidity != 0)
               document.getElementById('humidity').innerHTML=weather.humidity+'%';
@@ -219,14 +217,12 @@
         document.getElementById('windDirection').innerHTML=windDirection+'&deg;';
         document.getElementById('humidity').innerHTML=humidity+'%';
         document.getElementById('temperature').innerHTML=temperature+'&deg;C';
-        document.getElementById('rafale').innerHTML=rafale+'Km/h';
-        document.getElementById('nmMb').innerHTML=nmMb+'Mb';
+        document.getElementById('rafale').innerHTML=(rafale*3.6)+'Km/h';
+        document.getElementById('nmMb').innerHTML=nmMb+'mb';
         document.getElementById('version').innerHTML="Version: "+version;
         
         doRefresh(); 
     }
     </script>
-
 </body>
-
 </html>
