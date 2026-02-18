@@ -90,8 +90,7 @@ apt-get install -y \
   fswebcam libv4l-dev \
   bluez bluez-tools python3-dbus \
   bridge-utils isc-dhcp-server \
-  build-essential cmake pkg-config libboost-dev libi2c-dev \
-  pigpio-tools pigpio
+  build-essential cmake pkg-config libboost-dev libi2c-dev 
 
 log "Set ISC DHCP server interface: /etc/default/isc-dhcp-server"
 backup_if_exists /etc/default/isc-dhcp-server
@@ -102,6 +101,8 @@ else
   printf '\nINTERFACESv4="br0"\n' >> /etc/default/isc-dhcp-server
 fi
 
+install -m 0600 -D "${DEBIAN_HOME}/dhcpd.conf" /etc/dhcp/dhcpd.conf
+	
 log "Enable and start isc-dhcp-server (package unit, may be overridden later)"
 systemctl daemon-reload
 systemctl enable --now isc-dhcp-server || true
@@ -185,6 +186,7 @@ if [[ -d /opt/windspots ]]; then
   chmod 0777 /opt/windspots/etc/fswebcam.conf /opt/windspots/etc/main 2>/dev/null || true
   chmod 0755 /opt/windspots/etc 2>/dev/null || true
   chmod 0775 /opt/windspots 2>/dev/null || true
+  chmod 0755 /opt/windspots/html -R 2>/dev/null || true
 fi
 
 log "Create windspots.service"
