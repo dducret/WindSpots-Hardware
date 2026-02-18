@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="">
     <meta http-equiv="cache-control" content="no-cache" />
-    <meta name="author" content="Windspot Sàrl">
+    <meta name="author" content="Windspot SÃ rl">
 
     <title>WS</title>
     <link href="css/ws.css" rel="stylesheet">
@@ -141,7 +141,7 @@
        <div class="container">
         <div class="row">
           <div class="col-md-6 copyright">
-            Copyright © Windspots 2017
+            Copyright (c) WindSpots 2026
           </div>
           <div class="col-md-6 ">
             <div class="footerVersion" id="version"></div>
@@ -191,13 +191,13 @@
               } else {
                 windArrow.setAttribute('style','fill:#8a3030;-ms-transform: rotate(deg);-webkit-transform: rotate(0deg); transform: rotate(0deg);');
               }
-              document.getElementById('windDirection').innerHTML=weather.dir+'°';
+              document.getElementById('windDirection').innerHTML=weather.dir+'?';
               document.getElementById('rafal').innerHTML=weather.speed+' Km/h';
             }
             if(weather.humidity != 0)
               document.getElementById('humidity').innerHTML=weather.humidity+'%';
             if(weather.temperature != 0)
-              document.getElementById('temperature').innerHTML=weather.temperature+'°C';
+              document.getElementById('temperature').innerHTML=weather.temperature+'?C';
             if(weather.barometer != 0)
               document.getElementById('nmMb').innerHTML=weather.barometer+' mb';
           
@@ -224,9 +224,9 @@
         }
         document.getElementsByTagName('title')[0].innerHTML='WS: '+stationValue;
         document.getElementById('stationName').innerHTML=stationName;
-        document.getElementById('windDirection').innerHTML=windDirection+'°';
+        document.getElementById('windDirection').innerHTML=windDirection+'?';
         document.getElementById('humidity').innerHTML=humidity+'%';
-        document.getElementById('temperature').innerHTML=temperature+'°C';
+        document.getElementById('temperature').innerHTML=temperature+'?C';
         document.getElementById('rafal').innerHTML=rafal+'Km/h';
         document.getElementById('nmMb').innerHTML=nmMb+'Mb';
         document.getElementById('version').innerHTML="Version: "+version;
@@ -234,7 +234,5 @@
         doRefresh(); 
     }
     </script>
-
 </body>
-
 </html>
