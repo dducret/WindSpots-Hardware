@@ -301,6 +301,27 @@ static bool loadLatestWindFromWsDb(double *speed, double *direction)
   return false;
 }
 
+static bool loadWindValuesFile(double *speed, double *direction)
+{
+  FILE *fp = fopen("/var/tmp/windvalues", "r");
+  if (fp == NULL) {
+    return false;
+  }
+
+  double fileSpeed = 0.0;
+  double fileDirection = 0.0;
+  bool ok = fscanf(fp, "%lf %lf", &fileSpeed, &fileDirection) == 2;
+  fclose(fp);
+
+  if (!ok) {
+    return false;
+  }
+
+  *speed = fileSpeed;
+  *direction = fileDirection;
+  return true;
+}
+
 int main()
 {
   ads1015 ads(0x48);
@@ -314,13 +335,22 @@ int main()
   if (direction == 360) direction = 0;
 
   // Speed over 2 seconds (same GPIO event style as w3rpi.cpp)
+  double speed = 0.0;
   if (isW3rpiRunning()) {
-    printf("w3rpi process is running and already uses the anemometer GPIO. Stop w3rpi before running getanemo.\n");
-    return 1;
+    if (!loadWindValuesFile(&speed, &direction)) {
+      if (!loadLatestWindFromWsDb(&speed, &direction)) {
+        printf("w3rpi process is running but no wind values found in /var/tmp/windvalues or ws.db\n");
+        return 1;
+      }
+    }
+
+    printf("SPEED=%.2f\n", speed);
+    printf("DIRECTION=%.0f\n", direction);
+    return 0;
   }
 
   const unsigned int GPIO_ANEMO = 17;
-  double speed = measureSpeedFromGpioEvents(GPIO_ANEMO);
+  speed = measureSpeedFromGpioEvents(GPIO_ANEMO);
   if (speed < 0.0 && errno == EBUSY) {
     // If another process (e.g. w3rpi) already owns the GPIO line event, fallback to passive sysfs sampling.
     speed = measureSpeedFromSysfsSampling(GPIO_ANEMO);
