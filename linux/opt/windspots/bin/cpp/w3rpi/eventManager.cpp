@@ -1,10 +1,10 @@
 #include <iostream>
-#include <fstream> 
+#include <fstream>
 #include <pthread.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <math.h> 
+#include <math.h>
 #include <sys/time.h>
 #include <sqlite3.h>
 #include "w3rpi.h"
@@ -15,6 +15,16 @@
 using namespace std;
 
 #define NEAREST(number, multiple) (((number) + ((multiple) / 2)) / (multiple) * (multiple))
+
+static void writeWindValues(double direction, double speed)
+{
+  std::ofstream windValues("/var/tmp/windvalues", std::ofstream::out | std::ofstream::trunc);
+  if (!windValues.is_open()) {
+    return;
+  }
+  windValues << std::fixed << std::setprecision(2) << speed << " "
+             << std::setprecision(0) << direction << std::endl;
+}
 
 EventManager::EventManager(char * _piId) : piId(_piId), running(true) {
   eventListMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -27,17 +37,18 @@ EventManager::~EventManager() {
   // Signal the condition variable to unblock eventLoop if waiting.
   pthread_cond_signal(&eventCond);
   pthread_join(myThread, NULL);
-  
+
   delete myBmp280;
   delete inaBattery0;
   delete inaSolar0;
   delete ina5v;
   delete ads;
-  
+
   pthread_cond_destroy(&eventCond);
 }
 
-bool EventManager::init(std::string log, std::string tmp, int anemometer_altitude, int direction, bool b_radio, bool b_temperature, bool b_anemometer, bool b_solar) {
+bool EventManager::init(std::string log, std::string tmp, int anemometer_altitude, int direction, bool b_radio, bool b
+_temperature, bool b_anemometer, bool b_solar) {
   anemometerCounter = 0;
   fastestCount = 0;
   firstCount = 0;
@@ -51,8 +62,9 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
   bTemperature = b_temperature;
   bAnemometer = b_anemometer;
   bSolar = b_solar;
-  
-  snprintf(message, MESSAGE_SIZE, "Program Starting. log:%s, tmp:%s, altitude:%d, dir-correction:%d, 433:%u, Temp:%u, Anemo:%u, Solar: %u", 
+
+  snprintf(message, MESSAGE_SIZE, "Program Starting. log:%s, tmp:%s, altitude:%d, dir-correction:%d, 433:%u, Temp:%u,
+Anemo:%u, Solar: %u",
            log.c_str(), tmp.c_str(), altitude, direction, b_radio, b_temperature, b_anemometer, b_solar);
   logIt();
   if(w3rpi_debug) {
@@ -65,15 +77,19 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
   inaSolar0 = new ina219(0x40);
   ina5v = new ina219(0x43);
   ads = new ads1015(0x48);
-  
+
   // Create database if not exist
   if(sqlite3_open(this->tmpFileName.c_str(), &db)) {
-    snprintf(message, MESSAGE_SIZE, "Can't open database: %s, error: %s", this->tmpFileName.c_str(), sqlite3_errmsg(db));
+    snprintf(message, MESSAGE_SIZE, "Can't open database: %s, error: %s", this->tmpFileName.c_str(), sqlite3_errmsg(db
+));
     logIt();
     return false;
   }
   const char *sqlStmt;
-  sqlStmt = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE, name TEXT, sensor_id TEXT, channel INTEGER, rollingcode INTEGER, battery TEXT, temperature TEXT, temperature_sign TEXT, relative_humidity TEXT, comfort TEXT, uv_index TEXT, rain_rate TEXT, total_rain TEXT, barometer TEXT, prediction TEXT, wind_direction TEXT, wind_speed TEXT, wind_speed_average TEXT)";
+  sqlStmt = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE, name TEXT, senso
+r_id TEXT, channel INTEGER, rollingcode INTEGER, battery TEXT, temperature TEXT, temperature_sign TEXT, relative_humid
+ity TEXT, comfort TEXT, uv_index TEXT, rain_rate TEXT, total_rain TEXT, barometer TEXT, prediction TEXT, wind_directio
+n TEXT, wind_speed TEXT, wind_speed_average TEXT)";
   rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
   if(rc != SQLITE_OK) {
     snprintf(message, MESSAGE_SIZE, "w3rpi EventManager::init SQL error: %s", sqlite3_errmsg(db));
@@ -100,7 +116,7 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
     logIt();
     return false;
   }
-  return true;  
+  return true;
 }
 
 void EventManager::logIt() {
@@ -173,7 +189,7 @@ double EventManager::getWindDirection(){
       direction -= 360;
   if(direction == 360)
     direction = 0;
-  return direction;    
+  return direction;
 }
 
 double EventManager::getGust(){
@@ -187,7 +203,8 @@ double EventManager::getThermistor(){
   int adc_value = ads->readADC_SingleEnded(1);
   double volts = (adc_value * 3.3) / 1648.0;
   if(w3rpi_debug)
-    std::cerr << "w3rpi EventManager::getThermistor volts = " << std::fixed << std::setprecision(2) << volts << std::endl;
+    std::cerr << "w3rpi EventManager::getThermistor volts = " << std::fixed << std::setprecision(2) << volts << std::e
+ndl;
   if(volts > 0) {
     double ohm = round((3.3 - volts) / volts * 10000);
     double a =  0.0009333357965;
@@ -196,7 +213,7 @@ double EventManager::getThermistor(){
     double log_r  = log(ohm);
     double log_r3 = log_r * log_r * log_r;
     double temp = 1.0 / (a + b * log_r + c * log_r3);
-    temperature = round(temp - 273.15); 
+    temperature = round(temp - 273.15);
   }
   return temperature;
 }
@@ -222,14 +239,15 @@ int EventManager::getBarometerSealevel(){
   int sealevel  = 0;
   if(!myBmp280->update()) {
     if(w3rpi_debug)
-   		std::cerr << "w3rpi EventManager::eventLoop - Bmp280 error" << std::endl;
+                std::cerr << "w3rpi EventManager::eventLoop - Bmp280 error" << std::endl;
     snprintf(message, MESSAGE_SIZE, "w3rpi EventManager::eventLoop - Bmp280 error\n");
     logIt();
     return 0;
   }
   barometer = myBmp280->getPressure();
   if(w3rpi_debug)
-    std::cerr << "w3rpi EventManager::getBarometerSealevel barometer = " << std::fixed << std::setprecision(0) << barometer << std::endl;
+    std::cerr << "w3rpi EventManager::getBarometerSealevel barometer = " << std::fixed << std::setprecision(0) << baro
+meter << std::endl;
   if(barometer < 700)
     return 0;
   sealevel = static_cast<int>(barometer / pow(1.0 - static_cast<double>(altitude) / 44330.0, 5.255));
@@ -271,7 +289,8 @@ void EventManager::store(const char * _name, int channel, double battery, double
       "INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign, "
       "relative_humidity, barometer, wind_direction, wind_speed, wind_speed_average) "
       "VALUES ('%s', '%s', %d, '%0.1f', '%0.1f', '0', '%0.f', '%u', '%0.1f', '%0.2f', '%0.2f');",
-      currentTime, _name, channel, battery, temperature, humidity, barometer, windDirection, windSpeed, windSpeedAverage);
+      currentTime, _name, channel, battery, temperature, humidity, barometer, windDirection, windSpeed, windSpeedAvera
+ge);
   if(ret < 0 || ret >= (int) sizeof(sqlQuery)) {
     snprintf(message, sizeof(message), "SQL query buffer overflow detected");
     logIt();
@@ -299,7 +318,8 @@ void EventManager::store(const char * _name, int channel, double battery, double
   if(barometer != 0)
     snprintf(message + strlen(message), sizeof(message) - strlen(message), ", Baro:%u", barometer);
   if(windDirection != 0 || windSpeed != 0 || windSpeedAverage != 0)
-    snprintf(message + strlen(message), sizeof(message) - strlen(message), ", Dir:%0.f, Speed:%0.2f km/h, Average:%0.2f km/h",
+    snprintf(message + strlen(message), sizeof(message) - strlen(message), ", Dir:%0.f, Speed:%0.2f km/h, Average:%0.2
+f km/h",
              windDirection, (windSpeed * 3.6), (windSpeedAverage * 3.6));
   logIt();
 }
@@ -321,10 +341,10 @@ void * EventManager::eventLoop(void * _param) {
   long int currentMs = 0;
   struct timeval tp;
   Event ev;
-  
+
   gettimeofday(&tp, NULL);
   previousMs = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-  
+
   while(myEventManager->running) {
     // Wait for new events or timeout after 5ms
     pthread_mutex_lock(&myEventManager->eventListMutex);
@@ -332,12 +352,12 @@ void * EventManager::eventLoop(void * _param) {
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_nsec += 5 * 1000000; // 5ms
     pthread_cond_timedwait(&myEventManager->eventCond, &myEventManager->eventListMutex, &ts);
-    
+
     while (!myEventManager->eventList.empty()) {
       ev = myEventManager->eventList.front();
       myEventManager->eventList.pop_front();
       pthread_mutex_unlock(&myEventManager->eventListMutex);
-      
+
       switch(ev.eventType) {
         case w3rpi_EVENT_INIT:
           if(w3rpi_debug) {
@@ -356,7 +376,7 @@ void * EventManager::eventLoop(void * _param) {
       pthread_mutex_lock(&myEventManager->eventListMutex);
     }
     pthread_mutex_unlock(&myEventManager->eventListMutex);
-    
+
     // Periodic sensor processing
     gettimeofday(&tp, NULL);
     currentMs = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -379,18 +399,19 @@ void * EventManager::eventLoop(void * _param) {
         temperature = 0;
         if(myEventManager->bTemperature)
           temperature = myEventManager->getThermistor();
-        speed = gustSpeed = windDirection = 0;  
+        speed = gustSpeed = windDirection = 0;
         if(myEventManager->bAnemometer) {
           if(windSpeed > 1.0)
             speed = windSpeed / count;
           gustSpeed = windGustComputed;
           windDirection = myEventManager->getWindDirection();
+          writeWindValues(windDirection, speed);
         }
         batteryLevel = 0;
         if(myEventManager->bSolar) {
           if(myEventManager->getBatteryLevel() > 6.0)
             batteryLevel = (myEventManager->getBatteryLevel() - 11.0) * 34;
-          else 
+          else
             batteryLevel = 0.1;
         }
         myEventManager->store("WS200", 0, batteryLevel, temperature, 0.0, sealevel, windDirection, gustSpeed, speed);
