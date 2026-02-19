@@ -1,5 +1,5 @@
 #!/bin/sh
-. `dirname $0`/common.sh        # common windspots scripts
+. "$(dirname "$0")/common.sh"  # common windspots scripts
 # kill running
 /bin/sleep 5
 /usr/bin/killall w3rpi
@@ -11,12 +11,12 @@ echo $SERIAL > /opt/windspots/etc/serial
 cd $TMP
 /bin/gzip -f -9 ws.db
 /usr/bin/touch ws.db
-/usr/bin/chmod 777 ws.db
+/bin/chmod 777 ws.db
 $WINDSPOTS_BIN/initwsdb -s ${STATION} -l ${LOG} -t ${TMP}
 # setup welcome message
 /bin/echo '127.0.0.1 localhost' > /etc/hosts
 /bin/echo '127.0.1.1 '${STATION} >> /etc/hosts
-/bin/echo 'Debian 9 - '${VERSION} > /etc/issue
+/bin/echo 'Debian 11 - '${VERSION} > /etc/issue
 /bin/echo ${STATION} > /etc/hostname
 /usr/bin/hostnamectl set-hostname ${STATION}
 # register the station
