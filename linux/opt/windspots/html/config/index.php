@@ -338,7 +338,6 @@ $initial = [
   'nameValue' => (string)($windspots_ini['STATION_NAME'] ?? ''),
   'altitudeValue' => (string)($windspots_ini['ALTITUDE'] ?? ''),
   'dirAdjustValue' => (string)($windspots_ini['DIRADJ'] ?? ''),
-  'mhzValue' => (($windspots_ini['WS433'] ?? 'N') !== 'N'),
   'anemoValue' => (($windspots_ini['WSANEMO'] ?? 'N') !== 'N'),
   'solarValue' => (($windspots_ini['WSSOLAR'] ?? 'N') !== 'N'),
   'temperatureValue' => (($windspots_ini['WSTEMP'] ?? 'N') !== 'N'),
@@ -392,37 +391,82 @@ function doRefresh() {
   xhr.onreadystatechange = function () {
     if (this.readyState !== 4) return;
     if (this.status === 200) {
-      const alim = JSON.parse(this.responseText);
-      $('batteryVolt').textContent = `${alim.batteryVolt} V`;
-      $('batteryMhz').textContent = `${alim.batteryMhz} Mhz`;
-      $('solarVolt').textContent = `${alim.solarVolt} V`;
-      $('solarMhz').textContent = `${alim.solarMhz} Mhz`;
-      $('stationVolt').textContent = `${alim.stationVolt} V`;
-      $('stationMhz').textContent = `${alim.stationMhz} Mhz`;
-      $('stationDir').textContent = `${alim.dir.toFixed(1)}°`;
-      $('stationSpeed').textContent = `${alim.speed.toFixed(1)} km/h`;
-      $('stationTemp').textContent = `${alim.temp.toFixed(1)}°`;
-      $('stationPressure').textContent = `${alim.pressure} hPa`;
-      $('stationBTemp').textContent = `${alim.bTemp}°`;
-      $('log').textContent = `${alim.log}`;
-      setIndicatorColor('i2c40', alim.I2C40 === true);
-      setIndicatorColor('i2c41', alim.I2C41 === true);
-      setIndicatorColor('i2c43', alim.I2C43 === true);
-      setIndicatorColor('i2c48', alim.I2C48 === true);
-      setIndicatorColor('i2c77', alim.I2C77 === true);
-      setIndicatorColor('rj45', alim.lan === true);
-      setIndicatorColor('wifi', alim.wlan === true);
-      setIndicatorColor('ppp', alim.ppp === true);
-      $('rj45IP').textContent = alim.lanIP;
-      $('wifiIP').textContent = alim.wlanIP;
-      $('pppIP').textContent = alim.IPADDRESS;
-      $('ssidValue').value = alim.ssid;
-      $('pppProviderValue').textContent = alim.FULLNAME;
-      $('pppWorkMode').textContent = alim.WORKMODE;
-      updateSignal(alim.SIGNALICON);
+      let alim;
+      try {
+        alim = JSON.parse(this.responseText);
+      } catch (error) {
+        console.error('Invalid /php/infos.php JSON payload', error, this.responseText);
+        setTimeout(doRefresh, 2000);
+        return;
+      }
 
-      if (nbRefresh === 0) UI.spotImg.style.backgroundImage = `url(img/${alim.image})`;
+      const getValue = (primaryKey, fallbackKey, defaultValue = '') => {
+        if (alim[primaryKey] !== undefined && alim[primaryKey] !== null) return alim[primaryKey];
+        if (fallbackKey && alim[fallbackKey] !== undefined && alim[fallbackKey] !== null) return alim[fallbackKey];
+        return defaultValue;
+      };
+      const numberOrZero = (value, label) => {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+          console.debug(`infos.php invalid numeric value for ${label}:`, value);
+          return 0;
+        }
+        return parsed;
+      };
+
+      try {
+        $('batteryVolt').textContent = `${getValue('batteryVolt', 'BATTERYVOLT', '')} V`;
+        $('batteryMhz').textContent = `${getValue('batteryMhz', 'BATTERYMHZ', '')} Mhz`;
+        $('solarVolt').textContent = `${getValue('solarVolt', 'SOLARVOLT', '')} V`;
+        $('solarMhz').textContent = `${getValue('solarMhz', 'SOLARMHZ', '')} Mhz`;
+        $('stationVolt').textContent = `${getValue('stationVolt', 'STATIONVOLT', '')} V`;
+        $('stationMhz').textContent = `${getValue('stationMhz', 'STATIONMHZ', '')} Mhz`;
+        $('stationDir').textContent = `${numberOrZero(getValue('dir', 'DIRECTION', 0), 'dir').toFixed(1)}°`;
+        $('stationSpeed').textContent = `${numberOrZero(getValue('speed', 'SPEED', 0), 'speed').toFixed(1)} km/h`;
+        $('stationTemp').textContent = `${numberOrZero(getValue('temp', 'TEMPERATURE', 0), 'temp').toFixed(1)}°`;
+        $('stationPressure').textContent = `${getValue('pressure', 'PRESSURE', '')} hPa`;
+        $('stationBTemp').textContent = `${getValue('bTemp', 'INBOXTEMP', '')}°`;
+
+        const logValue = getValue('log', 'LOG', '');
+        $('log').innerHTML = `${logValue}`;
+
+        setIndicatorColor('i2c40', alim.I2C40 === true || alim.I2C40 === '1');
+        setIndicatorColor('i2c41', alim.I2C41 === true || alim.I2C41 === '1');
+        setIndicatorColor('i2c43', alim.I2C43 === true || alim.I2C43 === '1');
+        setIndicatorColor('i2c48', alim.I2C48 === true || alim.I2C48 === '1');
+        setIndicatorColor('i2c77', alim.I2C77 === true || alim.I2C77 === '1');
+        setIndicatorColor('rj45', alim.lan === true || alim.lan === '1');
+        setIndicatorColor('wifi', alim.wlan === true || alim.wlan === '1');
+        setIndicatorColor('ppp', alim.ppp === true || alim.ppp === '1');
+
+        $('rj45IP').textContent = getValue('lanIP', 'LANIP', '0.0.0.0');
+        $('wifiIP').textContent = getValue('wlanIP', 'WLANIP', '0.0.0.0');
+        $('pppIP').textContent = getValue('IPADDRESS', 'pppIP', '0.0.0.0');
+        $('ssidValue').value = getValue('ssid', 'SSID', '');
+        $('pppProviderValue').textContent = getValue('FULLNAME', 'fullName', '');
+        $('pppWorkMode').textContent = getValue('WORKMODE', 'workMode', '');
+        updateSignal(getValue('SIGNALICON', 'signalIcon', 0));
+
+        const imageName = getValue('image', 'IMAGE', '');
+        if (nbRefresh === 0) {
+          if (imageName) {
+            UI.spotImg.style.backgroundImage = `url(../img/${imageName})`;
+            console.debug('infos.php image applied:', imageName);
+          } else {
+            console.debug('infos.php image missing in payload', alim);
+          }
+        }
+
+        if (!logValue) {
+          console.debug('infos.php log missing/empty in payload', Object.keys(alim));
+        }
+      } catch (renderError) {
+        console.error('Failed to render infos.php payload', renderError, alim);
+      }
+
       if (++nbRefresh > 14) nbRefresh = 0;
+    } else {
+      console.debug(`infos.php request status ${this.status}`);
     }
     setTimeout(doRefresh, 2000);
   };
@@ -437,7 +481,6 @@ function setValue() {
   $('nameValue').value = initialState.nameValue;
   $('altitudeValue').value = initialState.altitudeValue;
   $('dirAdjustValue').value = initialState.dirAdjustValue;
-  $('433Value').checked = initialState.mhzValue;
   $('anemoValue').checked = initialState.anemoValue;
   $('solarValue').checked = initialState.solarValue;
   $('temperatureValue').checked = initialState.temperatureValue;
@@ -489,7 +532,6 @@ function doUpdate() {
   data.append('dir_adj', $('dirAdjustValue').value);
   data.append('camrotate', $('cameraRotationValue').value);
   data.append('cam_adj', $('camAdjustValue').value);
-  data.append('r433mhz', boolToYN($('433Value').checked));
   data.append('anemo', boolToYN($('anemoValue').checked));
   data.append('solar', boolToYN($('solarValue').checked));
   data.append('temp', boolToYN($('temperatureValue').checked));
