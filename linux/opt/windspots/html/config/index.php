@@ -14,7 +14,6 @@
 </head>
 
 <body id="page-top" class="index" onload="setValue()">
-<!--
     <header>
         <div class="container">
             <div class="row">
@@ -27,7 +26,6 @@
             </div>
         </div>
     </header>
--->
     <main>
         <div class="container">
             <div class="col-md-6">
@@ -134,13 +132,14 @@
                 </div>
 
                 <div class="row">
-                  <label class="col-xs-4 textRight">433 Mhz: </label>
+                  <label class="col-xs-4 textRight">Anemometer: </label>
                   <div class="col-xs-2">
                     <label class="switch">
-                      <input id="433Value" type="checkbox">
+                      <input id="anemoValue" type="checkbox">
                       <div class="slider round"></div>
                     </label>
                   </div>
+
                           
                   <label class="col-xs-3 textRight">Temperature: </label>
                   <div class="col-xs-3">
@@ -152,14 +151,6 @@
                 </div>
 
                 <div class="row">
-                  <label class="col-xs-4 textRight">Anemometer: </label>
-                  <div class="col-xs-2">
-                    <label class="switch">
-                      <input id="anemoValue" type="checkbox">
-                      <div class="slider round"></div>
-                    </label>
-                  </div>
-
                   <label class="col-xs-3 textRight">Solar </label>
                   <div class="col-xs-3">
                     <label class="switch">
@@ -241,7 +232,7 @@
 
               </div>
 
-                <div class="col-md-12 noPad">
+              <div class="col-md-12 noPad">
                     <div id="imgContainer">
                       <div id="showRotateValue"></div>
                       <div id="spotImg"></div>
@@ -337,333 +328,216 @@
     </footer>
 
 
-    <script type="text/javascript">
-    // Les variables
+    <script>
 <?php
-    $version = shell_exec("cat /opt/windspots/etc/version");
-    $windspots_ini = parse_ini_file("/opt/windspots/etc/main");
-    $version = str_replace(array("\n", "\r"), '', $version);
+$version = trim((string) @file_get_contents('/opt/windspots/etc/version'));
+$windspots_ini = parse_ini_file('/opt/windspots/etc/main') ?: [];
+$initial = [
+  'version' => $version,
+  'stationValue' => (string)($windspots_ini['STATION'] ?? ''),
+  'nameValue' => (string)($windspots_ini['STATION_NAME'] ?? ''),
+  'altitudeValue' => (string)($windspots_ini['ALTITUDE'] ?? ''),
+  'dirAdjustValue' => (string)($windspots_ini['DIRADJ'] ?? ''),
+  'mhzValue' => (($windspots_ini['WS433'] ?? 'N') !== 'N'),
+  'anemoValue' => (($windspots_ini['WSANEMO'] ?? 'N') !== 'N'),
+  'solarValue' => (($windspots_ini['WSSOLAR'] ?? 'N') !== 'N'),
+  'temperatureValue' => (($windspots_ini['WSTEMP'] ?? 'N') !== 'N'),
+  'rj45Value' => (($windspots_ini['RJ45'] ?? 'N') !== 'N'),
+  'wifiValue' => (($windspots_ini['WIFI'] ?? 'N') !== 'N'),
+  'pppValue' => (($windspots_ini['PPP'] ?? 'N') !== 'N'),
+  'camRotateValue' => (string)($windspots_ini['CAMROTATE'] ?? '0'),
+  'camAdjustValue' => (string)($windspots_ini['CAMADJUST'] ?? ''),
+];
+echo 'const initialState=' . json_encode($initial, JSON_UNESCAPED_SLASHES) . ';';
 ?>
-    var version="<?php echo $version;?>";
-    var stationValue="<?php echo $windspots_ini['STATION'];?>";
-    var nameValue="<?php echo $windspots_ini['STATION_NAME'];?>";
-    var pppProviderValue="uneCleUltraSecure";
-    var altitudeValue="<?php echo $windspots_ini['ALTITUDE'];?>";
-    var dirAdjustValue="<?php echo $windspots_ini['DIRADJ'];?>";;
-    var mhzValue=<?php if(strcmp($windspots_ini['WS433'],"N")) { echo 'true'; } else { echo 'false'; } ?>;
-    var anemoValue=<?php if(strcmp($windspots_ini['WSANEMO'],"N")) { echo 'true'; } else { echo 'false'; } ?>;
-    var solarValue=<?php if(strcmp($windspots_ini['WSSOLAR'],"N")) { echo 'true'; } else { echo 'false'; } ?>;
-    var temperatureValue=<?php if(strcmp($windspots_ini['WSTEMP'],"N")) { echo 'true'; } else { echo 'false'; } ?>;
-    var rj45Value=<?php if(strcmp($windspots_ini['RJ45'],"N")) { echo 'true'; } else { echo 'false'; } ?>;
-    var wifiValue=<?php if(strcmp($windspots_ini['WIFI'],"N")) { echo 'true'; } else { echo 'false'; } ?>;
-    var pppValue=<?php if(strcmp($windspots_ini['PPP'],"N")) { echo 'true'; } else { echo 'false'; } ?>;
-    var pppProvider="";
-    var camRotateValue="<?php echo $windspots_ini['CAMROTATE'];?>";
-    var camAdjustValue="<?php echo $windspots_ini['CAMADJUST'];?>";
-    
-    var ssidValue="";
-    var connexionStat=true;
-    var batteryVolt=0;
-    var batteryMhz=0;
-    var solarVolt=0;
-    var solarMhz=0;
-    var stationVolt=0;
-    var stationMhz=0;
-    var log="";
-    var nbRefresh = 0;
+const $ = (id) => document.getElementById(id);
+const boolToYN = (v) => (v ? 'Y' : 'N');
+let nbRefresh = 0;
 
-    document.getElementById('modalLoader').style.display="none";
-    if(solarValue==false) switchSolar(false);
-    
-    function doRefresh() {
-      var xmlhttp = new XMLHttpRequest();
-      xmlhttp.onreadystatechange = function() {
-          if (this.readyState == 4 && this.status == 200) {
-            var alim = JSON.parse(this.responseText);
-            console.log(alim);
-            document.getElementById('batteryVolt').innerHTML=alim.BATTERYVOLTAGE+' V'; 
-            document.getElementById('batteryMhz').innerHTML=Math.round(alim.BATTERYPOWER)+' mW';
-            document.getElementById('solarVolt').innerHTML=alim.SOLARVOLTAGE+' V';
-            document.getElementById('solarMhz').innerHTML=Math.round(alim.SOLARPOWER)+' mW';
-            document.getElementById('stationVolt').innerHTML=alim.LOADVOLTAGE+' V';
-            document.getElementById('stationMhz').innerHTML=Math.round(alim.LOADPOWER)+' mW';
-            document.getElementById('stationTemp').innerHTML=Math.round(alim.TEMPERATURE)+' °';
-            document.getElementById('stationPressure').innerHTML=Math.round(alim.SEALEVEL)+'/'+Math.round(alim.PRESSURE);
-            document.getElementById('stationBTemp').innerHTML=Math.round(alim.INBOXTEMP)+' °';
-            document.getElementById('stationDir').innerHTML=Math.round(alim.DIRECTION)+' °';
-            document.getElementById('stationSpeed').innerHTML=Math.round(alim.SPEED)+' m/s';
-            document.getElementById('log').innerHTML=alim.LOG;
-            var i2c=document.getElementById('i2c40');
-            var i2cValue = alim.I2C40;
-            if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            i2c=document.getElementById('i2c41'); 
-            i2cValue = alim.I2C41;
-            if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            i2c=document.getElementById('i2c43'); 
-            i2cValue = alim.I2C43;
-            if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            i2c=document.getElementById('i2c48'); 
-            i2cValue = alim.I2C48;
-            if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            i2c=document.getElementById('i2c77'); 
-            i2cValue = alim.I2C77;
-            if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            var netlab=document.getElementById('rj45'); 
-            var network = alim.lan;
-            if(network==true) { netlab.style.color="#1AB188"; } else { netlab.style.color="#8A3030";}
-            document.getElementById('rj45IP').innerHTML=alim.lanIP;
-            netlab=document.getElementById('wifi'); 
-            network = alim.wlan;
-            if(network==true) { netlab.style.color="#1AB188"; } else { netlab.style.color="#8A3030";}
-            document.getElementById('wifiIP').innerHTML=alim.wlanIP;
-            netlab=document.getElementById('ppp'); 
-            network = alim.ppp;
-            if(network==true) { netlab.style.color="#1AB188"; } else { netlab.style.color="#8A3030";}
-            document.getElementById('pppIP').innerHTML=alim.IPADDRESS;
-            document.getElementById('ssidValue').value=alim.ssid;
-              // hilink
-            document.getElementById('pppProviderValue').innerHTML=alim.FULLNAME;  
-            document.getElementById('pppWorkMode').innerHTML=alim.WORKMODE;
-            //  good four-bars
-            document.getElementById('pppSignal').classList.remove('good');
-            document.getElementById('pppSignal').classList.remove('ok');
-            document.getElementById('pppSignal').classList.remove('bad');
-            document.getElementById('pppSignal').classList.remove('one-bar');
-            document.getElementById('pppSignal').classList.remove('two-bars');
-            document.getElementById('pppSignal').classList.remove('three-bars');
-            document.getElementById('pppSignal').classList.remove('four-bars');
-            switch(parseInt(alim.SIGNALICON)) {
-              case 5:
-              case 4:
-                document.getElementById('pppSignal').classList.add('good');
-                document.getElementById('pppSignal').classList.add('four-bars');
-                break;
-              case 3:
-                document.getElementById('pppSignal').classList.add('ok');
-                document.getElementById('pppSignal').classList.add('three-bars');
-                break;
-              case 2:
-                document.getElementById('pppSignal').classList.add('bad');
-                document.getElementById('pppSignal').classList.add('two-bars');
-                break;
-              default:
-                document.getElementById('pppSignal').classList.add('bad');
-                document.getElementById('pppSignal').classList.add('one-bar');
-                break;
-            }
-              // reload image
-            var bgImage=document.getElementById('spotImg');
-            var seconds = new Date().getTime() / 1000;
-            if(nbRefresh == 0) bgImage.style.backgroundImage = "url(/img/"+alim.image+")";
-            if(nbRefresh++ > 14) nbRefresh = 0;
-            setTimeout(doRefresh, 2000);
-          }
-      };
-      xmlhttp.open("GET", "/php/infos.php", true);
-      xmlhttp.send();
-    }
+const UI = {
+  modalLoader: $('modalLoader'),
+  modalProvider: $('modalProvider'),
+  pppSignal: $('pppSignal'),
+  imgContainer: $('imgContainer'),
+  spotImg: $('spotImg'),
+  showRotateValue: $('showRotateValue')
+};
 
-    function setValue(){ 
-        // reset tous les champs 
-        for(i=0;i<document.getElementsByTagName('input').length;i++){
-          field=document.getElementsByTagName('input')[i];
-          fieldType=field.getAttribute('type');
-          if (fieldType=="text" || fieldType=="password"){
-            field.value="";
-          }else if(fieldType=="checkbox"){
-            field.checked=false;
-          }else if(fieldType=="range"){
-            field.value=0;
-          }
-        }
-        
-        document.getElementsByTagName('title')[0].innerHTML=stationValue+' MWS: '+version;
-        document.getElementById('version').innerHTML=version;
-        document.getElementById('stationValue').value=stationValue;
-        document.getElementById('nameValue').value=nameValue;
-        document.getElementById('pppProviderValue').value=pppProviderValue;
-        document.getElementById('altitudeValue').value=altitudeValue;
-        document.getElementById('dirAdjustValue').value=dirAdjustValue;
-        document.getElementById('433Value').checked=mhzValue;
-        document.getElementById('anemoValue').checked=anemoValue;
-        document.getElementById('solarValue').checked=solarValue;
-        document.getElementById('temperatureValue').checked=temperatureValue;
-        document.getElementById('rj45Value').checked=rj45Value;
-        document.getElementById('wifiValue').checked=wifiValue;
-        document.getElementById('pppValue').checked=pppValue;
-        // document.getElementById('pppProviderValue').value=pppProvider;
-        document.getElementById('camAdjustValue').value=camAdjustValue;
-        document.getElementById('camRotateValue').innerHTML=camRotateValue;
-        
-        doRefresh(); 
-    }
+UI.modalLoader.style.display = 'none';
 
-    function imgRotate(cameraRotationValue){
-      var img =document.getElementById('spotImg');
-      var showRotateValue=document.getElementById('showRotateValue');
-      console.log(cameraRotationValue);
-      img.style.transform='rotate('+cameraRotationValue+'deg)';
-      showRotateValue.innerHTML=cameraRotationValue+"�";
+function setIndicatorColor(id, ok) {
+  const el = $(id);
+  const color = ok ? '#1AB188' : '#8A3030';
+  el.style.color = color;
+  if (id.startsWith('i2c')) el.style.borderColor = color;
+}
+
+function updateSignal(iconValue) {
+  const classes = ['good', 'ok', 'bad', 'one-bar', 'two-bars', 'three-bars', 'four-bars'];
+  UI.pppSignal.classList.remove(...classes);
+  const icon = parseInt(iconValue, 10);
+  if (icon >= 4) {
+    UI.pppSignal.classList.add('good', 'four-bars');
+  } else if (icon === 3) {
+    UI.pppSignal.classList.add('ok', 'three-bars');
+  } else if (icon === 2) {
+    UI.pppSignal.classList.add('bad', 'two-bars');
+  } else {
+    UI.pppSignal.classList.add('bad', 'one-bar');
+  }
+}
+
+function doRefresh() {
+  const xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function () {
+    if (this.readyState !== 4) return;
+    if (this.status === 200) {
+      const alim = JSON.parse(this.responseText);
+      $('batteryVolt').textContent = `${alim.batteryVolt} V`;
+      $('batteryMhz').textContent = `${alim.batteryMhz} Mhz`;
+      $('solarVolt').textContent = `${alim.solarVolt} V`;
+      $('solarMhz').textContent = `${alim.solarMhz} Mhz`;
+      $('stationVolt').textContent = `${alim.stationVolt} V`;
+      $('stationMhz').textContent = `${alim.stationMhz} Mhz`;
+      $('stationDir').textContent = `${alim.dir.toFixed(1)}°`;
+      $('stationSpeed').textContent = `${alim.speed.toFixed(1)} km/h`;
+      $('stationTemp').textContent = `${alim.temp.toFixed(1)}°`;
+      $('stationPressure').textContent = `${alim.pressure} hPa`;
+      $('stationBTemp').textContent = `${alim.bTemp}°`;
+      $('log').textContent = `${alim.log}`;
+      setIndicatorColor('i2c40', alim.I2C40 === true);
+      setIndicatorColor('i2c41', alim.I2C41 === true);
+      setIndicatorColor('i2c43', alim.I2C43 === true);
+      setIndicatorColor('i2c48', alim.I2C48 === true);
+      setIndicatorColor('i2c77', alim.I2C77 === true);
+      setIndicatorColor('rj45', alim.lan === true);
+      setIndicatorColor('wifi', alim.wlan === true);
+      setIndicatorColor('ppp', alim.ppp === true);
+      $('rj45IP').textContent = alim.lanIP;
+      $('wifiIP').textContent = alim.wlanIP;
+      $('pppIP').textContent = alim.IPADDRESS;
+      $('ssidValue').value = alim.ssid;
+      $('pppProviderValue').textContent = alim.FULLNAME;
+      $('pppWorkMode').textContent = alim.WORKMODE;
+      updateSignal(alim.SIGNALICON);
+
+      if (nbRefresh === 0) UI.spotImg.style.backgroundImage = `url(img/${alim.image})`;
+      if (++nbRefresh > 14) nbRefresh = 0;
     }
-    
-    function showGrid(stat){
-      var showRotateValue=document.getElementById('showRotateValue');
-      grid=document.getElementsByClassName("grid");
-      //showRotateValue.style.color="#1AB188";
-      if (stat=='show'){
-        document.getElementById('imgContainer').style.outline="2px solid rgba(255,255,255,0.8)";
-        for(i=0;i<grid.length;i++){
-          grid[i].style.display="block";
-        } 
-      }else{
-        for(i=0;i<grid.length;i++){
-          document.getElementById('imgContainer').style.outline="none";
-          grid[i].style.display="none";
-        } 
-      }
-    }
-    
-    function showWifiModal(stat){
-      if(stat=='show'){
-        document.getElementById('ssid').value="";
-        document.getElementById('wpa').value="";
-        document.getElementById('modalProvider').style.display="block";
-      }else{
-        document.getElementById('modalProvider').style.display="none";
-      }
-    }
-    function sleep(miliseconds) {
-       var currentTime = new Date().getTime();
-       while (currentTime + miliseconds >= new Date().getTime()) { }
-    }
-    
-    function doUpdate(){
-      var station =document.getElementById('stationValue').value;
-      var station_name = document.getElementById('nameValue').value;
-      var altitude = document.getElementById('altitudeValue').value;
-      var dir_adj = document.getElementById('dirAdjustValue').value;
-      var cam_rotate = document.getElementById('cameraRotationValue').value;
-      var cam_adj = document.getElementById('camAdjustValue').value;
-      var r433mhz = "N";
-      if(document.getElementById('433Value').checked)
-        r433mhz = "Y";
-      var anemo = "N";
-      if(document.getElementById('anemoValue').checked)
-        anemo = "Y";
-      var solar = "N";
-      if(document.getElementById('solarValue').checked)
-        solar = "Y";
-      var temp = "N";
-      if(document.getElementById('temperatureValue').checked)
-        temp = "Y";
-      var rj45 = "N";
-      if(document.getElementById('rj45Value').checked)
-        rj45 = "Y";
-      var wifi = "N";
-      if(document.getElementById('wifiValue').checked)
-        wifi = "Y";
-      var ppp = "N";
-      if(document.getElementById('pppValue').checked)
-        ppp = "Y";
-      var ssidValue = document.getElementById('ssidValue').value;
-      var pppProvider =document.getElementById('pppProviderValue').value;
-      
-      var data = new FormData();
-      data.append('station', station);
-      data.append('station_name', station_name);
-      data.append('altitude', altitude);
-      data.append('dir_adj', dir_adj);
-      data.append('r433mhz', r433mhz);
-      data.append('camrotate', cam_rotate);
-      data.append('cam_adj', cam_adj);
-      data.append('temp', temp);
-      data.append('anemo', anemo);
-      data.append('solar', solar);
-      data.append('rj45', rj45);
-      data.append('wifi', wifi);
-      data.append('ppp', ppp);
-      data.append('pppProvider', pppProvider);
-      data.append('ssid', ssidValue);
-      
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', 'update.php', true);
-      xhr.onload = function () {
-          // do something to response
-          console.log(this.responseText);
-      };
-      xhr.send(data);  
-      // console.log("doUpdate() send");
-      var solarNewValue= document.getElementById('solarValue').checked;
-      switchSolar(solarNewValue);
-      // display loader
-      window.setTimeout(function() { document.getElementById('modalLoader').style.display="none"; }, 1000);
-      document.getElementById('modalLoader').style.display="block";
-      // update camera rotate value
-      camRotateValue = parseInt(camRotateValue,10) + parseInt(cam_rotate,10);
-      document.getElementById('camRotateValue').innerHTML=camRotateValue;
-    }
-    
-    function doWifi(){
-      document.getElementById('modalProvider').style.display="none";
-      var ssid = document.getElementById('ssid').value;
-      var wpa  = document.getElementById('wpa').value;
-      
-      var data = new FormData();
-      data.append('ssid', ssid);
-      data.append('wpa', wpa);
-      console.log("ssid:"+ssid+", wpa:"+wpa);
-      
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', 'wifiwpa.php', true);
-      xhr.onload = function () {
-          // do something to response
-          console.log(this.responseText);
-      };
-      xhr.send(data);  
-      // console.log("updated.") ;
-      // Display loader
-      window.setTimeout(function() { document.getElementById('modalLoader').style.display="none"; }, 1000);
-      document.getElementById('modalLoader').style.display="block";
-    }
-    
-    function switchSolar(bSolar) {
-      if(bSolar) {
-        document.getElementById('i2c40').style.display="inline-block";
-        document.getElementById('i2c41').style.display="inline-block";
-        document.getElementById('i2c43').style.display="inline-block";
-        document.getElementById('batteryRow').style.display="block";
-        document.getElementById('solarRow').style.display="block";
-        document.getElementById('stationRow').style.display="block";
-      }else{
-        document.getElementById('i2c40').style.display="none";
-        document.getElementById('i2c41').style.display="none";
-        document.getElementById('i2c43').style.display="none";
-        document.getElementById('batteryRow').style.display="none";
-        document.getElementById('solarRow').style.display="none";
-        document.getElementById('stationRow').style.display="none";
-      }
-    }
-    
-    function doReboot() {
-      var data = new FormData();
-      var currentDate = new Date();
-      data.append('reboot', currentDate);
-      console.log("reboot:"+currentDate);
-      
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', 'reboot.php', true);
-      xhr.onload = function () {
-          // do something to response
-          console.log(this.responseText);
-      };
-      xhr.send(data);  
-      
-      // Display loader
-      window.setTimeout(function() { document.getElementById('modalLoader').style.display="none"; }, 60000);
-      document.getElementById('modalLoader').style.display="block";
-    }
-    </script>
+    setTimeout(doRefresh, 2000);
+  };
+  xhr.open('GET', '/php/infos.php', true);
+  xhr.send();
+}
+
+function setValue() {
+  document.title = `${initialState.stationValue} MWS: ${initialState.version}`;
+  $('version').textContent = initialState.version;
+  $('stationValue').value = initialState.stationValue;
+  $('nameValue').value = initialState.nameValue;
+  $('altitudeValue').value = initialState.altitudeValue;
+  $('dirAdjustValue').value = initialState.dirAdjustValue;
+  $('433Value').checked = initialState.mhzValue;
+  $('anemoValue').checked = initialState.anemoValue;
+  $('solarValue').checked = initialState.solarValue;
+  $('temperatureValue').checked = initialState.temperatureValue;
+  $('rj45Value').checked = initialState.rj45Value;
+  $('wifiValue').checked = initialState.wifiValue;
+  $('pppValue').checked = initialState.pppValue;
+  $('camAdjustValue').value = initialState.camAdjustValue;
+  $('camRotateValue').textContent = initialState.camRotateValue;
+  $('cameraRotationValue').value = 0;
+
+  if (!initialState.solarValue) switchSolar(false);
+  doRefresh();
+}
+
+function imgRotate(rotation) {
+  UI.spotImg.style.transform = `rotate(${rotation}deg)`;
+  UI.showRotateValue.textContent = `${rotation}°`;
+}
+
+function showGrid(stat) {
+  const show = stat === 'show';
+  UI.imgContainer.style.outline = show ? '2px solid rgba(255,255,255,0.8)' : 'none';
+  document.querySelectorAll('.grid').forEach((el) => {
+    el.style.display = show ? 'block' : 'none';
+  });
+}
+
+function showWifiModal(stat) {
+  if (stat === 'show') {
+    $('ssid').value = '';
+    $('wpa').value = '';
+    UI.modalProvider.style.display = 'block';
+    return;
+  }
+  UI.modalProvider.style.display = 'none';
+}
+
+function postForm(url, data) {
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.send(data);
+}
+
+function doUpdate() {
+  const data = new FormData();
+  data.append('station', $('stationValue').value);
+  data.append('station_name', $('nameValue').value);
+  data.append('altitude', $('altitudeValue').value);
+  data.append('dir_adj', $('dirAdjustValue').value);
+  data.append('camrotate', $('cameraRotationValue').value);
+  data.append('cam_adj', $('camAdjustValue').value);
+  data.append('r433mhz', boolToYN($('433Value').checked));
+  data.append('anemo', boolToYN($('anemoValue').checked));
+  data.append('solar', boolToYN($('solarValue').checked));
+  data.append('temp', boolToYN($('temperatureValue').checked));
+  data.append('rj45', boolToYN($('rj45Value').checked));
+  data.append('wifi', boolToYN($('wifiValue').checked));
+  data.append('ppp', boolToYN($('pppValue').checked));
+  data.append('pppProvider', $('pppProviderValue').value || '');
+  data.append('ssid', $('ssidValue').value);
+  postForm('update.php', data);
+
+  switchSolar($('solarValue').checked);
+  UI.modalLoader.style.display = 'block';
+  setTimeout(() => { UI.modalLoader.style.display = 'none'; }, 1000);
+
+  const current = parseInt($('camRotateValue').textContent, 10) || 0;
+  const delta = parseInt($('cameraRotationValue').value, 10) || 0;
+  $('camRotateValue').textContent = String(current + delta);
+}
+
+function doWifi() {
+  UI.modalProvider.style.display = 'none';
+  const data = new FormData();
+  data.append('ssid', $('ssid').value);
+  data.append('wpa', $('wpa').value);
+  postForm('wifiwpa.php', data);
+  UI.modalLoader.style.display = 'block';
+  setTimeout(() => { UI.modalLoader.style.display = 'none'; }, 1000);
+}
+
+function switchSolar(enabled) {
+  const display = enabled ? 'inline-block' : 'none';
+  $('i2c40').style.display = display;
+  $('i2c41').style.display = display;
+  $('i2c43').style.display = display;
+  const rowDisplay = enabled ? 'block' : 'none';
+  $('batteryRow').style.display = rowDisplay;
+  $('solarRow').style.display = rowDisplay;
+  $('stationRow').style.display = rowDisplay;
+}
+
+function doReboot() {
+  const data = new FormData();
+  data.append('reboot', new Date().toISOString());
+  postForm('reboot.php', data);
+  UI.modalLoader.style.display = 'block';
+  setTimeout(() => { UI.modalLoader.style.display = 'none'; }, 60000);
+}
+</script>
 
 </body>
-
 </html>
