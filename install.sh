@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # install.sh
 set -euo pipefail
 
@@ -11,6 +11,8 @@ CONFIG_TXT="/boot/firmware/config.txt"
 DEBIAN_HOME="/home/debian"
 FSTAB="/etc/fstab"
 INSTALL_URL='https://station.windspots.org/install/'
+LINUX_DIR="${DEBIAN_HOME}/linux"
+LINUX_ZIP="${DEBIAN_HOME}/linux.zip"
 MESH_DIR="/opt/meshagent"
 MESH_BIN="${MESH_DIR}/meshagent"
 MESH_URL='https://mc.windspots.org:444/meshagents?id=c%40BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF&installflags=2&meshinstall=25'
@@ -94,8 +96,7 @@ ensure_line_present() {
   fi
 }
 
-copy_backup() {
-  # cp /etc/foo -> we interpret as "backup to .bak.<timestamp>"
+backup_file() {
   local src="$1"
   [[ -e "$src" ]] || die "Missing source file: $src"
   cp -a "$src" "${src}.bak.${TS}"
@@ -117,7 +118,7 @@ wget -O "dhcpd.conf" "${INSTALL_URL}dhcpd.conf"
 wget -O "linux.zip" "${INSTALL_URL}/linux.zip"
 wget -O "2-tuning.sh" "${INSTALL_URL}2-tuning.sh"
 wget -O "3-provisionning.sh" "${INSTALL_URL}3-provisionning.sh"
-chmod +x *.sh
+find . -maxdepth 1 -type f -name '*.sh' -exec chmod +x {} +
 
 ## Check if files was downloaded
 if [[ ! -f "${DEBIAN_HOME}/interfaces" ]]; then
@@ -208,7 +209,7 @@ else
 fi
 
 log "Writing sysctl config to disable IPv6 (and keep ip_forward=0)"
-backup_file "${SYSCTL_FILE}"
+backup_if_exists "${SYSCTL_FILE}"
 cat > "${SYSCTL_FILE}" <<'EOF'
 # Disable IP forwarding
 net.ipv4.ip_forward = 0
@@ -248,11 +249,11 @@ systemctl enable --now isc-dhcp-server || true
 log "Bluetooth rfkill unblock + chmod 555 /etc/bluetooth (as requested)"
 rfkill unblock bluetooth || true
 if [[ -e /etc/bluetooth ]]; then
+	ensure_uncommented "/etc/bluetooth/main.conf" "DiscoverableTimeout = 0"
   chmod 555 /etc/bluetooth || true
 else
   die "ERROR: /etc/bluetooth does not exist"
 fi
-ensure_uncommented "/etc/bluetooth/main.conf" "DiscoverableTimeout = 0"
 systemctl restart bluetooth --no-pager || true
 
 log "Bluetooth PAN bootstrap via bluetoothctl"
@@ -288,9 +289,9 @@ Requires=bluetooth.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/bluetoothctl power yes
-ExecStart=/usr/bin/bluetoothctl discoverable yes
-ExecStart=/usr/bin/bluetoothctl pairable yes
+ExecStart=/usr/bin/bluetoothctl power on
+ExecStart=/usr/bin/bluetoothctl discoverable on
+ExecStart=/usr/bin/bluetoothctl pairable on
 
 [Install]
 WantedBy=multi-user.target
@@ -346,6 +347,15 @@ systemctl enable --now isc-dhcp-server.service || true
 ##           WINDSPOTS                 ##
 ##                                     ##
 #########################################
+
+log "Unzipping linux.zip into /home/debian"
+if [[ -f "${LINUX_ZIP}" ]]; then
+  cd "${DEBIAN_HOME}"
+  rm -rf "${LINUX_DIR}" || true
+  unzip -o "${LINUX_ZIP}"
+else
+  die "ERROR: ${LINUX_ZIP} not found. Skipping unzip."
+fi
 
 log "Copy WindSpots payload into /opt"
 SRC_WINDSPOTS="/home/debian/linux/opt/windspots"
@@ -437,13 +447,13 @@ ReadWritePaths=/var/tmp
 [Install]
 WantedBy=multi-user.target
 '
-write_unit /etc/systemd/system/windspots.service "$WINDSPOTS_UNIT"
+write_unit_backup /etc/systemd/system/windspots.service "$WINDSPOTS_UNIT"
 systemctl daemon-reload
 systemctl enable --now windspots.service || true
 
 
 log "Backup nginx default site config"
-copy_backup /etc/nginx/sites-available/default
+backup_file /etc/nginx/sites-available/default
 install -m 0644 -D "${LINUX_DIR}/etc/nginx/sites-available/default" /etc/nginx/sites-available/default
 
 log "Enable php8.4-fpm and nginx"
