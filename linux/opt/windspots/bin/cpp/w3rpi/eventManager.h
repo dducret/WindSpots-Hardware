@@ -35,7 +35,6 @@ class EventManager {
     char message[MESSAGE_SIZE];
     int altitude;
     int direction_correction; 
-    bool bRadio;
     bool bTemperature;
     bool bAnemometer;
     bool bSolar;
@@ -57,7 +56,7 @@ class EventManager {
   public:
     EventManager(char * _piId);
     ~EventManager();
-    bool init(std::string log, std::string tmp, int altitude, int direction, bool radio, bool temperature, bool anemometer, bool solar);
+    bool init(std::string log, std::string tmp, int altitude, int direction, bool temperature, bool anemometer, bool solar);
     void logIt();
     void enqueue(int newEvent, char * _strValue);
     void anemometerAdd();
