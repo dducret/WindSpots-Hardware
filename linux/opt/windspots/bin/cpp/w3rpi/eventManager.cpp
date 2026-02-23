@@ -47,7 +47,7 @@ EventManager::~EventManager() {
   pthread_cond_destroy(&eventCond);
 }
 
-bool EventManager::init(std::string log, std::string tmp, int anemometer_altitude, int direction, bool b_radio, bool b_temperature, bool b_anemometer, bool b_solar) {
+bool EventManager::init(std::string log, std::string tmp, int anemometer_altitude, int direction, bool b_temperature, bool b_anemometer, bool b_solar) {
   anemometerCounter = 0;
   fastestCount = 0;
   firstCount = 0;
@@ -57,13 +57,12 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
   tmpFileName = tmp + "/ws.db";
   altitude = anemometer_altitude;
   direction_correction = direction;
-  bRadio = b_radio;
   bTemperature = b_temperature;
   bAnemometer = b_anemometer;
   bSolar = b_solar;
 
-  snprintf(message, MESSAGE_SIZE, "Program Starting. log:%s, tmp:%s, altitude:%d, dir-correction:%d, 433:%u, Temp:%u, Anemo:%u, Solar: %u",
-           log.c_str(), tmp.c_str(), altitude, direction, b_radio, b_temperature, b_anemometer, b_solar);
+  snprintf(message, MESSAGE_SIZE, "Program Starting. log:%s, tmp:%s, altitude:%d, dir-correction:%d, Temp:%u, Anemo:%u, Solar: %u",
+           log.c_str(), tmp.c_str(), altitude, direction, b_temperature, b_anemometer, b_solar);
   logIt();
   if(w3rpi_debug) {
     snprintf(message, MESSAGE_SIZE, "Debug Mode");
@@ -126,8 +125,11 @@ void EventManager::logIt() {
   }
   snprintf(currentTime, sizeof(currentTime), "%s:%03d", timePart, (int)tp.tv_usec/1000);
   std::ofstream log(this->logFileName.c_str(), std::ofstream::out | std::ofstream::app);
-  log << currentTime << " w3rpi " << message << std::endl;
-  log.close();
+  if (log.is_open()) {
+    log << currentTime << " w3rpi " << message << std::endl;
+    log.close();
+  }
+  std::cerr << currentTime << " w3rpi " << message << std::endl;
 }
 
 void EventManager::enqueue(int newEvent, char * _strValue) {
