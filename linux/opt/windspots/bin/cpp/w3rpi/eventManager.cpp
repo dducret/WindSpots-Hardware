@@ -47,8 +47,7 @@ EventManager::~EventManager() {
   pthread_cond_destroy(&eventCond);
 }
 
-bool EventManager::init(std::string log, std::string tmp, int anemometer_altitude, int direction, bool b_radio, bool b
-_temperature, bool b_anemometer, bool b_solar) {
+bool EventManager::init(std::string log, std::string tmp, int anemometer_altitude, int direction, bool b_radio, bool b_temperature, bool b_anemometer, bool b_solar) {
   anemometerCounter = 0;
   fastestCount = 0;
   firstCount = 0;
@@ -63,8 +62,7 @@ _temperature, bool b_anemometer, bool b_solar) {
   bAnemometer = b_anemometer;
   bSolar = b_solar;
 
-  snprintf(message, MESSAGE_SIZE, "Program Starting. log:%s, tmp:%s, altitude:%d, dir-correction:%d, 433:%u, Temp:%u,
-Anemo:%u, Solar: %u",
+  snprintf(message, MESSAGE_SIZE, "Program Starting. log:%s, tmp:%s, altitude:%d, dir-correction:%d, 433:%u, Temp:%u, Anemo:%u, Solar: %u",
            log.c_str(), tmp.c_str(), altitude, direction, b_radio, b_temperature, b_anemometer, b_solar);
   logIt();
   if(w3rpi_debug) {
@@ -80,16 +78,12 @@ Anemo:%u, Solar: %u",
 
   // Create database if not exist
   if(sqlite3_open(this->tmpFileName.c_str(), &db)) {
-    snprintf(message, MESSAGE_SIZE, "Can't open database: %s, error: %s", this->tmpFileName.c_str(), sqlite3_errmsg(db
-));
+    snprintf(message, MESSAGE_SIZE, "Can't open database: %s, error: %s", this->tmpFileName.c_str(), sqlite3_errmsg(db));
     logIt();
     return false;
   }
   const char *sqlStmt;
-  sqlStmt = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE, name TEXT, senso
-r_id TEXT, channel INTEGER, rollingcode INTEGER, battery TEXT, temperature TEXT, temperature_sign TEXT, relative_humid
-ity TEXT, comfort TEXT, uv_index TEXT, rain_rate TEXT, total_rain TEXT, barometer TEXT, prediction TEXT, wind_directio
-n TEXT, wind_speed TEXT, wind_speed_average TEXT)";
+  sqlStmt = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE, name TEXT, sensor_id TEXT, channel INTEGER, rollingcode INTEGER, battery TEXT, temperature TEXT, temperature_sign TEXT, relative_humidity TEXT, comfort TEXT, uv_index TEXT, rain_rate TEXT, total_rain TEXT, barometer TEXT, prediction TEXT, wind_direction TEXT, wind_speed TEXT, wind_speed_average TEXT)";
   rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
   if(rc != SQLITE_OK) {
     snprintf(message, MESSAGE_SIZE, "w3rpi EventManager::init SQL error: %s", sqlite3_errmsg(db));
@@ -203,8 +197,7 @@ double EventManager::getThermistor(){
   int adc_value = ads->readADC_SingleEnded(1);
   double volts = (adc_value * 3.3) / 1648.0;
   if(w3rpi_debug)
-    std::cerr << "w3rpi EventManager::getThermistor volts = " << std::fixed << std::setprecision(2) << volts << std::e
-ndl;
+    std::cerr << "w3rpi EventManager::getThermistor volts = " << std::fixed << std::setprecision(2) << volts << std::endl;
   if(volts > 0) {
     double ohm = round((3.3 - volts) / volts * 10000);
     double a =  0.0009333357965;
@@ -246,8 +239,7 @@ int EventManager::getBarometerSealevel(){
   }
   barometer = myBmp280->getPressure();
   if(w3rpi_debug)
-    std::cerr << "w3rpi EventManager::getBarometerSealevel barometer = " << std::fixed << std::setprecision(0) << baro
-meter << std::endl;
+    std::cerr << "w3rpi EventManager::getBarometerSealevel barometer = " << std::fixed << std::setprecision(0) << barometer << std::endl;
   if(barometer < 700)
     return 0;
   sealevel = static_cast<int>(barometer / pow(1.0 - static_cast<double>(altitude) / 44330.0, 5.255));
@@ -289,8 +281,7 @@ void EventManager::store(const char * _name, int channel, double battery, double
       "INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign, "
       "relative_humidity, barometer, wind_direction, wind_speed, wind_speed_average) "
       "VALUES ('%s', '%s', %d, '%0.1f', '%0.1f', '0', '%0.f', '%u', '%0.1f', '%0.2f', '%0.2f');",
-      currentTime, _name, channel, battery, temperature, humidity, barometer, windDirection, windSpeed, windSpeedAvera
-ge);
+      currentTime, _name, channel, battery, temperature, humidity, barometer, windDirection, windSpeed, windSpeedAverage);
   if(ret < 0 || ret >= (int) sizeof(sqlQuery)) {
     snprintf(message, sizeof(message), "SQL query buffer overflow detected");
     logIt();
@@ -318,8 +309,7 @@ ge);
   if(barometer != 0)
     snprintf(message + strlen(message), sizeof(message) - strlen(message), ", Baro:%u", barometer);
   if(windDirection != 0 || windSpeed != 0 || windSpeedAverage != 0)
-    snprintf(message + strlen(message), sizeof(message) - strlen(message), ", Dir:%0.f, Speed:%0.2f km/h, Average:%0.2
-f km/h",
+    snprintf(message + strlen(message), sizeof(message) - strlen(message), ", Dir:%0.f, Speed:%0.2f km/h, Average:%0.2f km/h",
              windDirection, (windSpeed * 3.6), (windSpeedAverage * 3.6));
   logIt();
 }
