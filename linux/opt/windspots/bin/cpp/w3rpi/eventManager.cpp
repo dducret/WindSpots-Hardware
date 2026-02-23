@@ -81,6 +81,7 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
     logIt();
     return false;
   }
+  sqlite3_busy_timeout(db, 1000);
   const char *sqlStmt;
   sqlStmt = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE, name TEXT, sensor_id TEXT, channel INTEGER, rollingcode INTEGER, battery TEXT, temperature TEXT, temperature_sign TEXT, relative_humidity TEXT, comfort TEXT, uv_index TEXT, rain_rate TEXT, total_rain TEXT, barometer TEXT, prediction TEXT, wind_direction TEXT, wind_speed TEXT, wind_speed_average TEXT)";
   rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
@@ -282,6 +283,8 @@ void EventManager::store(const char * _name, int channel, double battery, double
     logIt();
     return;
   }
+  sqlite3_busy_timeout(db, 1000);
+  
   char sqlQuery[512];
   int ret = snprintf(sqlQuery, sizeof(sqlQuery),
       "INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign, "
@@ -294,10 +297,30 @@ void EventManager::store(const char * _name, int channel, double battery, double
     sqlite3_close(db);
     return;
   }
-  if(sqlite3_exec(db, sqlQuery, NULL, NULL, &err_msg) != SQLITE_OK) {
-    snprintf(message, sizeof(message), "w3rpi EventManager::store SQL error: %s\n", err_msg);
+  int execRc = SQLITE_ERROR;
+  for (int attempt = 0; attempt < 5; ++attempt) {
+    execRc = sqlite3_exec(db, sqlQuery, NULL, NULL, &err_msg);
+    if (execRc == SQLITE_OK) {
+      break;
+    }
+    if (execRc == SQLITE_BUSY || execRc == SQLITE_LOCKED) {
+      if (err_msg != NULL) {
+        sqlite3_free(err_msg);
+        err_msg = NULL;
+      }
+      usleep(100000);
+      continue;
+    }
+    break;
+  }
+
+  if(execRc != SQLITE_OK) {
+    snprintf(message, sizeof(message), "w3rpi EventManager::store SQL error: %s\n",
+             err_msg != NULL ? err_msg : sqlite3_errmsg(db));
     logIt();
-    sqlite3_free(err_msg);
+    if (err_msg != NULL) {
+      sqlite3_free(err_msg);
+    }
     sqlite3_close(db);
     return;
   }
