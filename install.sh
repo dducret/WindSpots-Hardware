@@ -16,6 +16,8 @@ LINUX_ZIP="${DEBIAN_HOME}/linux.zip"
 MESH_DIR="/opt/meshagent"
 MESH_BIN="${MESH_DIR}/meshagent"
 MESH_URL='https://mc.windspots.org:444/meshagents?id=c%40BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF&installflags=2&meshinstall=25'
+PHP_CLI="/etc/php/8.4/cli/php.ini"
+PHP_FPM="/etc/php/8.4/fpm/php.ini"
 SYSCTL_FILE="/etc/sysctl.d/98-rpi.conf"
 
 export DEBIAN_FRONTEND=noninteractive
@@ -116,9 +118,6 @@ wget -O "interfaces" "${INSTALL_URL}interfaces"
 wget -O "wpa_supplicant.conf" "${INSTALL_URL}wpa_supplicant.conf"
 wget -O "dhcpd.conf" "${INSTALL_URL}dhcpd.conf"
 wget -O "linux.zip" "${INSTALL_URL}/linux.zip"
-wget -O "2-tuning.sh" "${INSTALL_URL}2-tuning.sh"
-wget -O "3-provisionning.sh" "${INSTALL_URL}3-provisionning.sh"
-find . -maxdepth 1 -type f -name '*.sh' -exec chmod +x {} +
 
 ## Check if files was downloaded
 if [[ ! -f "${DEBIAN_HOME}/interfaces" ]]; then
@@ -134,6 +133,12 @@ if [[ ! -f "${DEBIAN_HOME}/linux.zip" ]]; then
    die "linux.zip file not found!, please provide it"
 fi
 
+log "raspi-config to activate i2c correctly"
+raspi-config
+
+log "rpi-update Mandatory for i2c"
+rpi-update
+
 log "Installing meshagent"
 mkdir -p "${MESH_DIR}"
 cd "${MESH_DIR}"
@@ -142,7 +147,7 @@ chmod +x "${MESH_BIN}"
 "${MESH_BIN}" -install --installPath="${MESH_DIR}"
 
 log "Removing arm64 packages if any"
-apt-get purge -y $(dpkg -l | grep ":arm64" | awk '{print $2}')
+apt purge -y $(dpkg -l | grep ":arm64" | awk '{print $2}')
 
 log "Remove manual pages auto update marker (if present)"
 rm -f /var/lib/man-db/auto-update || true
@@ -157,8 +162,6 @@ log "Remove Audio"
 ensure_commented "${CONFIG_TXT}" "dtparam=audio=on"
 sudo sed -i 's/dtoverlay=vc4-kms-v3d/dtoverlay=vc4-kms-v3d,noaudio/' "$CONFIG_TXT"
 sudo apt purge -y \
-    alsa-utils alsa-topology-conf alsa-ucm-conf \
-    libasound2-data \
     libcamera-apps-lite \
     vlc-bin vlc-plugin-base \
     triggerhappy
@@ -169,7 +172,7 @@ log "Upgrade packages"
 apt update && apt upgrade -y
 
 log "Get packages for WindSpots"
-apt-get install -y \
+apt install -y \
   nginx php-fpm php-cli php-curl php8.4-sqlite3 jq \
   sqlite3 libsqlite3-dev \
   fswebcam libv4l-dev \
@@ -181,8 +184,9 @@ log "Tuning /boot/firmware/config.txt"
 if [[ -f "${CONFIG_TXT}" ]]; then
   backup_file "${CONFIG_TXT}"
 
-  ## uncomment: dtparam=i2c_arm=on
-  ensure_uncommented "${CONFIG_TXT}" "dtparam=i2c_arm=on"
+  ## Not realy working - replaced by raspi-config at the beginning
+  ## Could be invetigated
+  ## ensure_uncommented "${CONFIG_TXT}" "dtparam=i2c_arm=on"
 
   ## comment these if present
   ensure_commented "${CONFIG_TXT}" "dtparam=audio=on"
@@ -451,7 +455,6 @@ write_unit_backup /etc/systemd/system/windspots.service "$WINDSPOTS_UNIT"
 systemctl daemon-reload
 systemctl enable --now windspots.service || true
 
-
 log "Backup nginx default site config"
 backup_file /etc/nginx/sites-available/default
 install -m 0644 -D "${LINUX_DIR}/etc/nginx/sites-available/default" /etc/nginx/sites-available/default
@@ -462,16 +465,25 @@ nginx -t
 systemctl reload nginx
 
 
+log "## Generate exe and copy to bin"
+chmod +x /opt/windspots/bin/cpp/makeall.sh
+/opt/windspots/bin/cpp/makeall.sh
 
+log "## Set time zone for php cli"
+ensure_line_present "${PHP_CLI}" "date.timezone = Europe/Zurich"
+ensure_line_present "${PHP_FPM}" "date.timezone = Europe/Zurich"
 
-echo "## Install ifupdown"
+log "## Configure station"
+/opt/windspots/bin/ws-configure.sh
+
+log "## Install ifupdown"
 apt install -y ifupdown
 
-echo "## Copy network configs (if linux/ tree exists)"
+log "## Copy network configs (if linux/ tree exists)"
 install -m 0644 -D "${DEBIAN_HOME}/interfaces" /etc/network/interfaces
 install -m 0600 -D "${DEBIAN_HOME}/wpa_supplicant.conf" /etc/wpa_supplicant/wpa_supplicant.conf
 
-echo "## Disable NetworkManager services"
+log "## Disable NetworkManager services"
 systemctl disable --now NetworkManager.service 2>/dev/null || true
 systemctl mask NetworkManager.service 2>/dev/null || true
 systemctl disable --now NetworkManager-wait-online.service 2>/dev/null || true
