@@ -69,6 +69,7 @@ class EventManager {
     float getSolarPower();
     float get5vPower();
     int getBarometerSealevel();
+    bool isRunning() const;
     void store(const char * _name, int channel, double battery, double temperature, double humidity, int barometer, double wind_direction, double wind_speed, double wind_speed_average);
 };
 #endif /* EVENTMANAGER_H_ */
