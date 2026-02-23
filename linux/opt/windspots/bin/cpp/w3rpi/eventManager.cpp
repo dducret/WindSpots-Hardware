@@ -248,6 +248,10 @@ int EventManager::getBarometerSealevel(){
   return sealevel;
 }
 
+bool EventManager::isRunning() const {
+  return running;
+}
+
 void EventManager::store(const char * _name, int channel, double battery, double temperature,
                          double humidity, int barometer, double windDirection, double windSpeed,
                          double windSpeedAverage) {
@@ -407,6 +411,9 @@ void * EventManager::eventLoop(void * _param) {
             batteryLevel = 0.1;
         }
         myEventManager->store("WS200", 0, batteryLevel, temperature, 0.0, sealevel, windDirection, gustSpeed, speed);
+        if(!myEventManager->bAnemometer) {
+          myEventManager->running = false;
+        }
         windDirection = windSpeed = windGust = windGustComputed = 0;
         count = 0;
       }
