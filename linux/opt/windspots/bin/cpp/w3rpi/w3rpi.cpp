@@ -165,6 +165,7 @@ int main(int argc, char *argv[]) {
       }
     }
     if ((arg == "-a") || (arg == "--altitude")) {
+    	knownOption = true;
       if (i + 1 < argc) {
           altitude = argv[i+1];
       } else {
