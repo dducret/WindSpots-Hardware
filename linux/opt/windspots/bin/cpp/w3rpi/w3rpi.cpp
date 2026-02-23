@@ -27,27 +27,19 @@ bool w3rpi_debug;
 static EventManager * g_event_manager = NULL;
 
 static void show_usage() {
-    std::cerr << "Usage: w3rpi_no433 <option(s)>\n"
+    std::cerr << "Usage: w3rpi <option(s)>\n"
               << "Options:\n"
               << "\t-h,--help\t\tShow this help message\n"
+              << "\t-s,--station\t\tStation identifier\n"
               << "\t-d,--dir-adjustment\tDirection adjustement (0, 360)\n"
               << "\t-a,--altitude\t\tAltitude in meter\n"
+              << "\t-n,--anemometer\t\tAnemometer enabled (Y/N)\n"
+              << "\t-p,--temperature\tTemperature enabled (Y/N)\n"
+              << "\t-o,--solar\t\tSolar monitoring enabled (Y/N)\n"
               << "\t-l,--log\t\tLog file default:/var/log\n"
               << "\t-t,--tmp\t\tLog file default:/var/tmp\n"
-              << "\t--debug\t\tDebug mode\n"
+              << "\t--debug\t\t\tDebug mode (Y/N)\n"
               << std::endl;
-}
-
-static bool writeFile(const char *path, const char *value) {
-  int fd = open(path, O_WRONLY);
-  if (fd < 0) {
-    return false;
-  }
-
-  ssize_t len = static_cast<ssize_t>(strlen(value));
-  ssize_t written = write(fd, value, len);
-  close(fd);
-  return written == len;
 }
 
 void runAnemometerListener() {
@@ -133,32 +125,42 @@ void runAnemometerListener() {
       }
     }
   }
-
   close(eventFd);
 }
 int main(int argc, char *argv[]) {
+  std::string station = "CHGE99";
   std::string direction = "0";
   std::string altitude = "0";
   std::string tmp = "/var/tmp";
   std::string log = "/var/log";
-  char first;
   bool anemometer = false;
   bool temperature = false;
   bool solar = false;
   w3rpi_debug = false;
+  char first;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
+    bool knownOption = false;
     if ((arg == "-h") || (arg == "--help")) {
         show_usage();
         return 0;
     }
-    if ((arg == "-d") || (arg == "--dir-adjustment")) {
+    if ((arg == "-s") || (arg == "--station")) {
+      knownOption = true;
       if (i + 1 < argc) {
-          direction = argv[i+1];
+        station = argv[i + 1];
       } else {
-          std::cerr << "--dir-adjustment option requires one argument." << std::endl;
-          return 1;
+        std::cerr << "--station option requires one argument." << std::endl;
+        return 1;
+      }
+    if ((arg == "-d") || (arg == "--dir-adjustment")) {
+      knownOption = true;
+      if (i + 1 < argc) {
+        direction = argv[i+1];
+      } else {
+        std::cerr << "--dir-adjustment option requires one argument." << std::endl;
+        return 1;
       }
     }
     if ((arg == "-a") || (arg == "--altitude")) {
@@ -170,6 +172,7 @@ int main(int argc, char *argv[]) {
       }
     }
     if ((arg == "-n") || (arg == "--anemometer")) {
+      knownOption = true;
       if (i + 1 < argc) {
           first = argv[i+1][0];
           first = toupper(first);
@@ -182,6 +185,7 @@ int main(int argc, char *argv[]) {
       }
     }
     if ((arg == "-p") || (arg == "--temperature")) {
+      knownOption = true;
       if (i + 1 < argc) {
           first = argv[i+1][0];
           first = toupper(first);
@@ -194,6 +198,7 @@ int main(int argc, char *argv[]) {
       }
     }
     if ((arg == "-o") || (arg == "--solar")) {
+      knownOption = true;
       if (i + 1 < argc) {
           first = argv[i+1][0];
           first = toupper(first);
@@ -206,6 +211,7 @@ int main(int argc, char *argv[]) {
       }
     }
     if ((arg == "-l") || (arg == "--log")) {
+      knownOption = true;
       if (i + 1 < argc) {
           log = argv[i+1];
       } else {
@@ -214,6 +220,7 @@ int main(int argc, char *argv[]) {
       }
     }
     if ((arg == "-t") || (arg == "--tmp")) {
+      knownOption = true;
       if (i + 1 < argc) {
           tmp = argv[i+1];
       } else {
@@ -222,6 +229,7 @@ int main(int argc, char *argv[]) {
       }
     }
     if (arg == "--debug") {
+      knownOption = true;
       if (i + 1 < argc) {
           first = argv[i+1][0];
           first = toupper(first);
@@ -229,9 +237,15 @@ int main(int argc, char *argv[]) {
             w3rpi_debug = true;
           }
       } else {
-          std::cerr << "--debug." << std::endl;
+          std::cerr << "--debug option requires one argument." << std::endl;
           return 1;
       }
+    }
+    
+    if (!knownOption && !arg.empty() && arg[0] == '-') {
+      std::cerr << "Unknown option: " << arg << std::endl;
+      show_usage();
+      return 1;
     }
   }
   
@@ -240,9 +254,9 @@ int main(int argc, char *argv[]) {
 
   int iAltitude = atoi(altitude.c_str());
   int iDirection = atoi(direction.c_str());
-  eventManager.init(log, tmp, iAltitude, iDirection, false, temperature, anemometer, solar);
+  eventManager.init(station, log, tmp, iAltitude, iDirection, temperature, anemometer, solar);
 
-	std::thread anemometerThread;
+  std::thread anemometerThread;
   if(anemometer) {
     anemometerThread = std::thread(runAnemometerListener);
     anemometerThread.detach();
