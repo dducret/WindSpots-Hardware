@@ -154,6 +154,7 @@ int main(int argc, char *argv[]) {
         std::cerr << "--station option requires one argument." << std::endl;
         return 1;
       }
+    }
     if ((arg == "-d") || (arg == "--dir-adjustment")) {
       knownOption = true;
       if (i + 1 < argc) {
@@ -254,7 +255,7 @@ int main(int argc, char *argv[]) {
 
   int iAltitude = atoi(altitude.c_str());
   int iDirection = atoi(direction.c_str());
-  eventManager.init(station, log, tmp, iAltitude, iDirection, temperature, anemometer, solar);
+  eventManager.init(log, tmp, iAltitude, iDirection, temperature, anemometer, solar);
 
   std::thread anemometerThread;
   if(anemometer) {
@@ -262,9 +263,11 @@ int main(int argc, char *argv[]) {
     anemometerThread.detach();
   }
 
-  while (1) {
+  while (eventManager.isRunning()) {
     sleep(1);
   }
-
+	if(!anemometer) {
+    std::cerr << "No anemometer, the program will be restarted with health-check.sh in 2 minutes" << std::endl;
+  }
   return 0;
 }
