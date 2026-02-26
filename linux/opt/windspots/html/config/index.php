@@ -2,15 +2,17 @@
 <html lang="en">
 <!-- WindS W1234 -->
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
-    <meta http-equiv="cache-control" content="no-cache" />
-    <meta name="author" content="Windspot Sàrl">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="author" content="Windspot Sàrl">
 
-    <title>MWS</title>
-    <link href="../css/wsm.css" rel="stylesheet">
+  <title>MWS</title>
+  <link href="../css/wsm.css" rel="stylesheet">
 </head>
 
 <body id="page-top" class="index" onload="setValue()">
@@ -29,16 +31,6 @@
     <main>
         <div class="container">
             <div class="col-md-6">
-
-            <div class="row">
-                <div class="col-md-12 textCenter">
-                  <div class="gridContainer">
-                    <span>Version: <span id="version"></span></span>  
-                    <span>&nbsp</span>  
-                    <span><input style="width:auto; background:#8a3030;" id="stationReboot" type="submit" value="Reboot" onclick="return doReboot()" ></span> 
-                  </div>
-                </div>
-            </div>
 
                 <div class="row">
                     <label class="col-xs-4 textRight">Station: </label>
@@ -165,72 +157,72 @@
 
                 <!-- infos -->
             <div class="col-md-6">
-                <div class="row">
-                  <label class="col-xs-2">i2c: </label>
-                  <div class="col-xs-10">
-                    <span id="i2c40" class="square iTcStat">40</span>
-                    <span id="i2c41" class="square iTcStat">41</span>
-                    <span id="i2c43" class="square iTcStat">43</span>
-                    <span id="i2c48" class="square iTcStat">48</span>
-                    <span id="i2c77" class="square iTcStat">77</span>
-                  </div>
+              <div class="info-row">
+                <label class="info-label">i2c: </label>
+                <div class="info-values>
+                  <span id="i2c40" class="square iTcStat">40</span>
+                  <span id="i2c41" class="square iTcStat">41</span>
+                  <span id="i2c43" class="square iTcStat">43</span>
+                  <span id="i2c48" class="square iTcStat">48</span>
+                  <span id="i2c77" class="square iTcStat">77</span>
                 </div>
-
-                <div id="solarRow" class="row">
-                  <label class="col-xs-2">Solar[40]:</label>
-                  <div class="col-xs-10">
-                    <span id="solarVolt" class="square squareVolt"></span>
-                    <span id="solarMhz" class="square squareVolt"></span>
-                  </div>
-                </div>
-
-                <div id="batteryRow" class="row">
-                  <label class="col-xs-2">Battery[41]:</label>
-                  <div class="col-xs-10">
-                    <span id="batteryVolt" class="square squareVolt"></span>
-                    <span id="batteryMhz" class="square squareVolt"></span>
-                  </div>
-                </div>
-
-                <div id="stationRow" class="row">
-                  <label class="col-xs-2">Station[43]:</label>
-                  <div class="col-xs-10">
-                    <span id="stationVolt" class="square squareVolt"></span>
-                    <span id="stationMhz" class="square squareVolt"></span>
-                  </div>
-                </div>
-
-                <div id="temperatureRow" class="row">
-                  <label class="col-xs-2">Temp[48:1]:</label>
-                  <div class="col-xs-10">
-                    <span id="stationTemp" class="square squareVolt"></span>
-                  </div>
-                </div>
-
-                <div id="bmp280Row" class="row">
-                  <label class="col-xs-2">Bmp280[77]:</label>
-                  <div class="col-xs-10">
-                    <span id="stationPressure" class="square squareVolt"></span>
-                    <span id="stationBTemp" class="square squareVolt"></span>
-                  </div>
-                </div>
-
-                <div id="anemoRow" class="row">
-                  <label class="col-xs-2">Anemo[48:0]:</label>
-                  <div class="col-xs-10">
-                    <span id="stationDir" class="square squareVolt"></span>
-                    <span id="stationSpeed" class="square squareVolt"></span>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <div class="col-md-12">
-                    <label>Log:</label>
-                    <p id="log"></p>
-                  </div>
-                </div>
-
               </div>
+
+              <div id="solarRow" class="row">
+                <label class="col-xs-2">Solar[40]:</label>
+                <div class="col-xs-10">
+                  <span id="solarVolt" class="square squareVolt"></span>
+                  <span id="solarMhz" class="square squareVolt"></span>
+                </div>
+              </div>
+
+              <div id="batteryRow" class="row">
+                <label class="col-xs-2">Battery[41]:</label>
+                <div class="col-xs-10">
+                  <span id="batteryVolt" class="square squareVolt"></span>
+                  <span id="batteryMhz" class="square squareVolt"></span>
+                </div>
+              </div>
+
+              <div id="stationRow" class="row">
+                <label class="col-xs-2">Station[43]:</label>
+                <div class="col-xs-10">
+                  <span id="stationVolt" class="square squareVolt"></span>
+                  <span id="stationMhz" class="square squareVolt"></span>
+                </div>
+              </div>
+
+              <div id="temperatureRow" class="row">
+                <label class="col-xs-2">Temp[48:1]:</label>
+                <div class="col-xs-10">
+                  <span id="stationTemp" class="square squareVolt"></span>
+                </div>
+              </div>
+
+              <div id="bmp280Row" class="row">
+                <label class="col-xs-2">Bmp280[77]:</label>
+                <div class="col-xs-10">
+                  <span id="stationPressure" class="square squareVolt"></span>
+                  <span id="stationBTemp" class="square squareVolt"></span>
+                </div>
+              </div>
+
+              <div id="anemoRow" class="row">
+                <label class="col-xs-2">Anemo[48:0]:</label>
+                <div class="col-xs-10">
+                  <span id="stationDir" class="square squareVolt"></span>
+                  <span id="stationSpeed" class="square squareVolt"></span>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-12">
+                  <label>Log:</label>
+                  <p id="log"></p>
+                </div>
+              </div>
+
+            </div>
 
               <div class="col-md-12 noPad">
                     <div id="imgContainer">
@@ -316,8 +308,19 @@
                   </svg>
                 </div>
               </div>
+      
+              <div class="col-md-12 noPad">
+                <div class="row">
+                  <div class="col-md-12 textCenter">
+                    <div class="gridContainer">
+                      <span><input style="width:auto; background:#8a3030;" id="stationReboot" type="submit" value="Reboot" onclick="return doReboot()" ></span> 
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
 
-                
         </div>
     </main>
 
@@ -347,13 +350,13 @@ $initial = [
   'camRotateValue' => (string)($windspots_ini['CAMROTATE'] ?? '0'),
   'camAdjustValue' => (string)($windspots_ini['CAMADJUST'] ?? ''),
 ];
-echo 'const initialState=' . json_encode($initial, JSON_UNESCAPED_SLASHES) . ';';
+echo 'let initialState=' . json_encode($initial, JSON_UNESCAPED_SLASHES) . ';';
 ?>
-const $ = (id) => document.getElementById(id);
-const boolToYN = (v) => (v ? 'Y' : 'N');
+let $ = (id) => document.getElementById(id);
+let boolToYN = (v) => (v ? 'Y' : 'N');
 let nbRefresh = 0;
 
-const UI = {
+let UI = {
   modalLoader: $('modalLoader'),
   modalProvider: $('modalProvider'),
   pppSignal: $('pppSignal'),
@@ -365,16 +368,16 @@ const UI = {
 UI.modalLoader.style.display = 'none';
 
 function setIndicatorColor(id, ok) {
-  const el = $(id);
-  const color = ok ? '#1AB188' : '#8A3030';
+  let el = $(id);
+  let color = ok ? '#1AB188' : '#8A3030';
   el.style.color = color;
   if (id.startsWith('i2c')) el.style.borderColor = color;
 }
 
 function updateSignal(iconValue) {
-  const classes = ['good', 'ok', 'bad', 'one-bar', 'two-bars', 'three-bars', 'four-bars'];
+  let classes = ['good', 'ok', 'bad', 'one-bar', 'two-bars', 'three-bars', 'four-bars'];
   UI.pppSignal.classList.remove(...classes);
-  const icon = parseInt(iconValue, 10);
+  let icon = parseInt(iconValue, 10);
   if (icon >= 4) {
     UI.pppSignal.classList.add('good', 'four-bars');
   } else if (icon === 3) {
@@ -387,26 +390,28 @@ function updateSignal(iconValue) {
 }
 
 function doRefresh() {
-  const xhr = new XMLHttpRequest();
+  let xhr = new XMLHttpRequest();
   xhr.onreadystatechange = function () {
-    if (this.readyState !== 4) return;
+    if (this.readyState !== 4) {
+      return;
+    } 
     if (this.status === 200) {
       let alim;
       try {
         alim = JSON.parse(this.responseText);
       } catch (error) {
         console.error('Invalid /php/infos.php JSON payload', error, this.responseText);
-        setTimeout(doRefresh, 2000);
+        setTimeout(doRefresh, 4000);
         return;
       }
 
-      const getValue = (primaryKey, fallbackKey, defaultValue = '') => {
+      let getValue = (primaryKey, fallbackKey, defaultValue = '') => {
         if (alim[primaryKey] !== undefined && alim[primaryKey] !== null) return alim[primaryKey];
         if (fallbackKey && alim[fallbackKey] !== undefined && alim[fallbackKey] !== null) return alim[fallbackKey];
         return defaultValue;
       };
-      const numberOrZero = (value, label) => {
-        const parsed = Number(value);
+      let numberOrZero = (value, label) => {
+        let parsed = Number(value);
         if (!Number.isFinite(parsed)) {
           console.debug(`infos.php invalid numeric value for ${label}:`, value);
           return 0;
@@ -427,8 +432,9 @@ function doRefresh() {
         $('stationPressure').textContent = `${getValue('pressure', 'PRESSURE', '')} hPa`;
         $('stationBTemp').textContent = `${getValue('bTemp', 'INBOXTEMP', '')}°`;
 
-        const logValue = getValue('log', 'LOG', '');
-        $('log').innerHTML = `${logValue}`;
+        let logValue = String(getValue('log', 'LOG', ''));
+        let normalizedLogValue = logValue.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+        $('log').innerHTML = normalizedLogValue;
 
         setIndicatorColor('i2c40', alim.I2C40 === true || alim.I2C40 === '1');
         setIndicatorColor('i2c41', alim.I2C41 === true || alim.I2C41 === '1');
@@ -447,30 +453,34 @@ function doRefresh() {
         $('pppWorkMode').textContent = getValue('WORKMODE', 'workMode', '');
         updateSignal(getValue('SIGNALICON', 'signalIcon', 0));
 
-        const imageName = getValue('image', 'IMAGE', '');
+        let imageName = getValue('image', 'IMAGE', '');
         if (nbRefresh === 0) {
           if (imageName) {
             UI.spotImg.style.backgroundImage = `url(../img/${imageName})`;
-            console.debug('infos.php image applied:', imageName);
+            // console.log('infos.php image applied:', imageName);
           } else {
-            console.debug('infos.php image missing in payload', alim);
+            console.error('infos.php image missing in payload', alim);
           }
+        } else {
+          // console.log("nbRefresh: ",nbRefresh); 
         }
 
         if (!logValue) {
-          console.debug('infos.php log missing/empty in payload', Object.keys(alim));
+          console.error('infos.php log missing/empty in payload', Object.keys(alim));
+        } else {
+          // console.log('infos.php log length:', logValue.length);
         }
       } catch (renderError) {
         console.error('Failed to render infos.php payload', renderError, alim);
       }
 
-      if (++nbRefresh > 14) nbRefresh = 0;
+      if (++nbRefresh > 5) nbRefresh = 0;  // wait 20 seconds for reloading image
     } else {
-      console.debug(`infos.php request status ${this.status}`);
+      // console.log(`infos.php request status ${this.status}`);
     }
-    setTimeout(doRefresh, 2000);
+    setTimeout(doRefresh, 4000);
   };
-  xhr.open('GET', '/php/infos.php', true);
+  xhr.open('GET', '/php/infos.php?t=' + new Date().getTime(), true);
   xhr.send();
 }
 
@@ -501,7 +511,7 @@ function imgRotate(rotation) {
 }
 
 function showGrid(stat) {
-  const show = stat === 'show';
+  let show = stat === 'show';
   UI.imgContainer.style.outline = show ? '2px solid rgba(255,255,255,0.8)' : 'none';
   document.querySelectorAll('.grid').forEach((el) => {
     el.style.display = show ? 'block' : 'none';
@@ -519,13 +529,13 @@ function showWifiModal(stat) {
 }
 
 function postForm(url, data) {
-  const xhr = new XMLHttpRequest();
+  let xhr = new XMLHttpRequest();
   xhr.open('POST', url, true);
   xhr.send(data);
 }
 
 function doUpdate() {
-  const data = new FormData();
+  let data = new FormData();
   data.append('station', $('stationValue').value);
   data.append('station_name', $('nameValue').value);
   data.append('altitude', $('altitudeValue').value);
@@ -546,14 +556,14 @@ function doUpdate() {
   UI.modalLoader.style.display = 'block';
   setTimeout(() => { UI.modalLoader.style.display = 'none'; }, 1000);
 
-  const current = parseInt($('camRotateValue').textContent, 10) || 0;
-  const delta = parseInt($('cameraRotationValue').value, 10) || 0;
+  let current = parseInt($('camRotateValue').textContent, 10) || 0;
+  let delta = parseInt($('cameraRotationValue').value, 10) || 0;
   $('camRotateValue').textContent = String(current + delta);
 }
 
 function doWifi() {
   UI.modalProvider.style.display = 'none';
-  const data = new FormData();
+  let data = new FormData();
   data.append('ssid', $('ssid').value);
   data.append('wpa', $('wpa').value);
   postForm('wifiwpa.php', data);
@@ -562,18 +572,18 @@ function doWifi() {
 }
 
 function switchSolar(enabled) {
-  const display = enabled ? 'inline-block' : 'none';
+  let display = enabled ? 'inline-block' : 'none';
   $('i2c40').style.display = display;
   $('i2c41').style.display = display;
   $('i2c43').style.display = display;
-  const rowDisplay = enabled ? 'block' : 'none';
+  let rowDisplay = enabled ? 'block' : 'none';
   $('batteryRow').style.display = rowDisplay;
   $('solarRow').style.display = rowDisplay;
   $('stationRow').style.display = rowDisplay;
 }
 
 function doReboot() {
-  const data = new FormData();
+  let data = new FormData();
   data.append('reboot', new Date().toISOString());
   postForm('reboot.php', data);
   UI.modalLoader.style.display = 'block';
