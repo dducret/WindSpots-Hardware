@@ -30,7 +30,7 @@
     </header>
     <main>
         <div class="container">
-            <div class="col-md-6">
+            <div class="col-md-12">
 
                 <div class="row">
                     <label class="col-xs-4 textRight">Station: </label>
@@ -156,10 +156,10 @@
               
 
                 <!-- infos -->
-            <div class="col-md-6">
+            <div class="col-md-12">
               <div class="info-row">
                 <label class="info-label">i2c: </label>
-                <div class="info-values>
+                <div class="info-values">
                   <span id="i2c40" class="square iTcStat">40</span>
                   <span id="i2c41" class="square iTcStat">41</span>
                   <span id="i2c43" class="square iTcStat">43</span>
@@ -244,7 +244,7 @@
                 </div>
               </div>
               
-              <div class="col-md-6">
+              <div class="col-md-12">
                 <div class="row">
                   <label class="col-xs-4 textRight">Camera Rotate: </label>
                   <label id="camRotateValue"class="col-xs-2 textRight">0</label>
@@ -457,6 +457,7 @@ function doRefresh() {
         if (nbRefresh === 0) {
           if (imageName) {
             UI.spotImg.style.backgroundImage = `url(../img/${imageName})`;
+            // imgRotate($('cameraRotationValue').value);
             // console.log('infos.php image applied:', imageName);
           } else {
             console.error('infos.php image missing in payload', alim);
@@ -474,7 +475,7 @@ function doRefresh() {
         console.error('Failed to render infos.php payload', renderError, alim);
       }
 
-      if (++nbRefresh > 5) nbRefresh = 0;  // wait 20 seconds for reloading image
+    if (++nbRefresh > 5) nbRefresh = 0;  // wait 20 seconds for reloading image
     } else {
       // console.log(`infos.php request status ${this.status}`);
     }
@@ -548,7 +549,6 @@ function doUpdate() {
   data.append('rj45', boolToYN($('rj45Value').checked));
   data.append('wifi', boolToYN($('wifiValue').checked));
   data.append('ppp', boolToYN($('pppValue').checked));
-  data.append('pppProvider', $('pppProviderValue').value || '');
   data.append('ssid', $('ssidValue').value);
   postForm('update.php', data);
 
