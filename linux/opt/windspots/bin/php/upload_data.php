@@ -89,6 +89,7 @@ if (!file_exists($dbPath)) {
 } else {
     try {
         $db = new SQLite3($dbPath);
+        $db->busyTimeout(1000);
         $SQLnow = date("Y-m-d H:i:s");
         $stmt = $db->prepare("SELECT * FROM data WHERE last_update BETWEEN :last_update AND :SQLnow ORDER BY sensor_id DESC");
         $stmt->bindValue(':last_update', $lastUpload);
@@ -151,6 +152,7 @@ if (!file_exists($dbPath)) {
 if ($nbrec < 1) {
 	try {
     $db = new SQLite3($windspotsTmp.'/ws.db');
+    $db->busyTimeout(1000);
     $lastRowResult = $db->query("SELECT last_update FROM data ORDER BY last_update DESC LIMIT 1");
     $lastRow = $lastRowResult ? $lastRowResult->fetchArray(SQLITE3_ASSOC) : null;
     $lastSeenUpdate = ($lastRow && isset($lastRow['last_update'])) ? $lastRow['last_update'] : 'NONE';
