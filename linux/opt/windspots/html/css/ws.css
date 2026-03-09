@@ -3,48 +3,37 @@
   --ws-accent: #1ab188;
   --ws-bg: #fff;
 }
-
 * { box-sizing: border-box; }
-
 body {
   margin: 0;
   background: var(--ws-bg);
   color: var(--ws-blue);
   font: 500 clamp(13px, 1vw + 8px, 26px)/1.35 Helvetica, Arial, sans-serif;
 }
-
 img, svg { display: block; max-width: 100%; }
-
 .container {
   width: min(1170px, 95vw);
   margin: 0 auto;
   padding: 0;
 }
-
 .row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
-
 .col { width: 100%; padding: 0 0.8rem; }
 .col-4, .col-6, .col-8, .col-12 { width: 100%; }
-
-@media (min-width: 992px) {
+@media (min-width: 680px) {
   .col-4 { width: 33.333%; }
   .col-6 { width: 50%; }
   .col-8 { width: 66.666%; }
   .col-12 { width: 100%; }
 }
-
 .text-right { text-align: right; }
 .text-left { text-align: left; }
 .text-center { text-align: center; }
-
 main.container, footer.container { box-shadow: 0 0 16px rgb(0 0 0 / 25%); }
 .header-row { align-items: center; padding: 1rem 0 0.2rem; }
 #logo { width: min(18vw, 240px); height: auto; margin-left: auto; }
-#stationName { margin: 0; text-transform: uppercase; font-size: clamp(18px, 1.5vw + 8px, 44px); }
-
 #imgContainer { margin: 0.5rem 0 1.2rem; overflow: hidden; }
 #spotImg {
   width: 100%;
@@ -55,7 +44,6 @@ main.container, footer.container { box-shadow: 0 0 16px rgb(0 0 0 / 25%); }
   transition: opacity .35s linear;
 }
 #spotImg.is-visible { opacity: 1; }
-
 .status-row { align-items: center; }
 #timeBlock { display: flex; justify-content: center; }
 .time-row {
@@ -76,9 +64,7 @@ text { fill: var(--ws-blue); stroke: none; font-weight: 700; }
 }
 .txtLight { font-size: 24px; font-weight: 400; }
 .txtBold { font-size: 26px; font-weight: 700; }
-
 #hour, #date { font-size: clamp(18px, 1.5vw + 8px, 40px); line-height: 1.1; margin: .4rem 0; }
-
 #infosSpot { padding-top: .4rem; }
 .kv {
   display: flex;
@@ -86,10 +72,8 @@ text { fill: var(--ws-blue); stroke: none; font-weight: 700; }
   gap: .8rem;
   min-height: 1.8em;
 }
-
 .footer-row { margin-top: 1.2rem; padding: .8rem; }
 .footerVersion { text-align: right; }
-
 @media (max-width: 991px) {
   #infosSpot { margin-top: 1rem; }
   .time-row { gap: .7rem; }
