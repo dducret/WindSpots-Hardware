@@ -9,6 +9,9 @@ iface eth0 inet dhcp
 
 allow-hotplug eth1
 iface eth1 inet dhcp
+    post-up ip route add default via 192.168.8.1 dev eth1 || true
+    # Set a lower metric to ensure this is the preferred gateway
+    metric 50
 
 allow-hotplug wlan0
 iface wlan0 inet dhcp
