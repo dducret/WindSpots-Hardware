@@ -2,6 +2,7 @@
 # Load common functions and configuration
 . "$(dirname "$0")/common.sh"
 ws_syslog "WS ${STATION} boot"
+ws_log_console "[startup] Booting station ${STATION}"
 
 # Clean-up temporary files and logs
 rm -f "${TMP}/lastconnection" "${TMP}/lastimage" "${TMP}/input.jpg" "${LOG}/windspots.log"
@@ -29,7 +30,8 @@ service nginx start
 touch /var/log/windspots.log
 ln -sf /var/log/windspots.log /opt/windspots/log/windspots.log
 chown windspots:windspots /var/log/windspots.log
-chmod 755 /var/log/windspots.log
+chmod 777 /var/log/windspots.log
+chown windspots:windspots /opt/windspots/log -R
 
 # Adjust rights for update and serial configuration
 chown -R windspots:windspots /tmp /opt/windspots/etc/serial
@@ -41,4 +43,5 @@ chmod 777 /var/tmp/infos
 
 #  log message
 echo "[ ok ] WindSpots Station started."
+ws_log_console "[ ok ] WindSpots Station started."
 exit 0
