@@ -58,7 +58,6 @@ nav {
 .col-xs-10 { width: 83.3333%; }
 .col-xs-12,
 .col-md-12 { width: 100%; }
-.col-md-6 { width: 50%; }
 
 /* Typography & Helpers */
 .textRight { text-align: right; }
@@ -221,7 +220,7 @@ input:focus {
 /* UI Widgets (Logs, Switches, Squares) */
 #log {
   font-size: 12px;
-  max-height: 120px;
+  max-height: 150px;
   overflow: auto;
 }
 
