@@ -8,6 +8,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 CONFIG_TXT="/boot/firmware/config.txt"
+CMDLINE_TXT="/boot/firmware/cmdline.txt"
 DEBIAN_HOME="/home/debian"
 FSTAB="/etc/fstab"
 INSTALL_URL='https://station.windspots.org/install/'
@@ -169,7 +170,7 @@ apt autoremove --purge -y
 apt clean
 
 log "Upgrade packages"
-apt update && apt upgrade -y
+apt update && apt full-upgrade -y
 
 log "Get packages for WindSpots"
 apt install -y \
@@ -211,6 +212,18 @@ if [[ -f "${CONFIG_TXT}" ]]; then
 else
   die "WARNING: ${CONFIG_TXT} not found; skipping."
 fi
+
+log "Fixing cmdline.txt for bluettoth for RPI 3B"
+TOKEN="console=serial0,115200"
+backup_if_exists "${CMDLINE_TXT}"
+current="$(tr '\n' ' ' < "$FILE" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+updated="$(printf '%s\n' "$current" | sed -E "s/(^| )${TOKEN}( |$)/ /g; s/[[:space:]]+/ /g; s/^ //; s/ $//")"
+if [[ "$current" == "$updated" ]]; then
+  log "    No change needed: $TOKEN not present in $FILE"
+  exit 0
+fi
+printf '%s\n' "$updated" > "$FILE"
+log "    Removed $TOKEN from $FILE"
 
 log "Writing sysctl config to disable IPv6 (and keep ip_forward=0)"
 backup_if_exists "${SYSCTL_FILE}"
@@ -399,16 +412,15 @@ install -d -m 0755 /opt/windspots/log
 ln -s /var/log/windspots.log /opt/windspots/log/windspots.log
 
 if [[ -d /opt/windspots ]]; then
+	chmod o+rx /opt 2>/dev/null || true
+  chmod o+rx /opt/windspots 2>/dev/null || true
+  chmod o+x  /opt/windspots/bin /opt/windspots/bin/cpp /opt/windspots/bin/cpp/WS200 2>/dev/null || true
   chown -R windspots:windspots /opt/windspots || true
-  find /opt/windspots -type d -exec chmod 0750 {} \; || true
-  find /opt/windspots -type f -exec chmod 0640 {} \; || true
   chmod 0755 /opt/windspots/bin/*.sh 2>/dev/null || true
-  chmod 0755 /opt/windspots/bin/w3rpi /opt/windspots/bin/initwsdb 2>/dev/null || true
-  chmod 0777 /opt/windspots/etc/fswebcam.conf /opt/windspots/etc/main 2>/dev/null || true
   chmod 0755 /opt/windspots/etc 2>/dev/null || true
-  chmod 0775 /opt/windspots 2>/dev/null || true
+  chmod 0777 /opt/windspots/etc -R 2>/dev/null || true
+  chmod 0777 /opt/windspots/etc/fswebcam.conf /opt/windspots/etc/main 2>/dev/null || true
   chmod 0755 /opt/windspots/html -R 2>/dev/null || true
-  chmod 0755 /opt/windspots/etc -R 2>/dev/null || true
 fi
 
 log "Install cron entries (via /etc/cron.d/windspots)"
@@ -459,11 +471,15 @@ log "Backup nginx default site config"
 backup_file /etc/nginx/sites-available/default
 install -m 0644 -D "${LINUX_DIR}/etc/nginx/sites-available/default" /etc/nginx/sites-available/default
 
+log "Enable nginx using i2c"
+usermod -aG i2c www-data
+
+chmod -R 755 /opt/windspots/log
+
 log "Enable php8.4-fpm and nginx"
 systemctl enable --now php8.4-fpm nginx
 nginx -t
 systemctl reload nginx
-
 
 log "## Generate exe and copy to bin"
 chmod +x /opt/windspots/bin/cpp/makeall.sh
@@ -483,6 +499,9 @@ log "## Copy network configs (if linux/ tree exists)"
 install -m 0644 -D "${DEBIAN_HOME}/interfaces" /etc/network/interfaces
 install -m 0600 -D "${DEBIAN_HOME}/wpa_supplicant.conf" /etc/wpa_supplicant/wpa_supplicant.conf
 
+log "## Set Huiawei 4G USB Dongle"
+echo 'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{type}=="1", KERNEL=="usb*", NAME="eth1"' | sudo tee /etc/udev/rules.d/70-usb-to-eth1.rules > /dev/null
+
 log "## Disable NetworkManager services"
 systemctl disable --now NetworkManager.service 2>/dev/null || true
 systemctl mask NetworkManager.service 2>/dev/null || true
@@ -497,6 +516,6 @@ systemctl disable --now cloud-init.service cloud-init.target 2>/dev/null || true
 systemctl mask cloud-config.service cloud-final.service cloud-init-local.service \
   cloud-init-main.service cloud-init-network.service cloud-init-hotplugd.service \
   cloud-init.service cloud-init.target 2>/dev/null || true
-  
+
 log "Reboot"
-reboot
+reboot now
