@@ -16,7 +16,7 @@ fi
 # Check if weather processes are running; restart if not
 if [ "$W3RPI" = "Y" ]; then
   if pgrep -f w3rpi > /dev/null; then
-    echo "w3rpi running"
+    ws_log_console "w3rpi running"
   else
     ws_log "No w3rpi process found - restarting"
     "${WINDSPOTS_BIN}/process-weather.sh"
@@ -33,4 +33,19 @@ if [ "$AGE" -ge "$DATA_TRANSMISSION" ]; then
 else
   ws_log "Last Transmission: ${AGE} seconds ago"
 fi
+
+# Check if the default controller is discoverable
+# 'bluetoothctl show' returns the full status of the default adapter
+# rfkill unblock bluetooth >/dev/null 2>&1
+STATUS=$(bluetoothctl show | grep "Discoverable: yes")
+if [ -z "$STATUS" ]; then
+    ws_log_console "Discoverable is currently NO. Turning it ON..."
+bluetoothctl <<EOF >/dev/null 2>&1
+power on
+discoverable on
+pairable on
+default-agent
+EOF >&2
+fi
+
 exit 0
