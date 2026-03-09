@@ -21,7 +21,7 @@ get_operstate() {
     else
         state="down"
     fi
-    echo "$state"
+    ws_log_console "$state"
 }
 
 # Check interface operstates
@@ -31,19 +31,19 @@ WLANOPERATE=$(get_operstate wlan0)
 if [ -f /sys/class/net/usb0/operstate ]; then
     USBOPERATE=$(get_operstate usb0)
 else
-    USBOPERATE="Not connected"
+    USBOPERATE=$(get_operstate eth1)
 fi
 
 # Display state info for logging purposes
-echo "RJ45 (eth0): $LANOPERATE"
-echo "WIFI (wlan0): $WLANOPERATE"
-echo "USB dongle (usb0): $USBOPERATE"
+ws_log_console "RJ45 (eth0): $LANOPERATE"
+ws_log_console "WIFI (wlan0): $WLANOPERATE"
+ws_log_console "USB dongle (usb0): $USBOPERATE"
 
 # Manage RJ45 interface (eth0)
 if [ "$RJ45" = "Y" ]; then
   if [ "$LANOPERATE" = "up" ]; then
     ETH0_IP=$(ifconfig eth0 | grep -Po 'inet \K[\d.]+')
-    echo "RJ45=Y => up : $ETH0_IP"
+    ws_log_console "RJ45=Y => up : $ETH0_IP"
   else
     ws_log "RJ45=Y - Interface is down. Turning it up"
     ifconfig eth0 up && ifup eth0
@@ -53,7 +53,7 @@ else
     ws_log "RJ45=N - Interface is up. Turning it down"
     ifconfig eth0 down && ifdown eth0
   else
-    echo "RJ45=N => already down"
+    ws_log_console "RJ45=N => already down"
   fi
 fi
 
@@ -61,7 +61,7 @@ fi
 if [ "$WIFI" = "Y" ]; then
   if [ "$WLANOPERATE" = "up" ]; then
     WLAN0_IP=$(ifconfig wlan0 | grep -Po 'inet \K[\d.]+')
-    echo "WIFI=Y => up : $WLAN0_IP"
+    ws_log_console "WIFI=Y => up : $WLAN0_IP"
   else
     ws_log "WIFI=Y - Interface is $WLANOPERATE. Turning it up"
     ifconfig wlan0 up && ifup wlan0
@@ -71,7 +71,7 @@ else
     ws_log "WIFI=N - Interface is up. Turning it down"
     ifconfig wlan0 down && ifdown wlan0
   else
-    echo "WIFI=N => already down"
+    ws_log_console "WIFI=N => already down"
   fi
 fi
 
@@ -79,7 +79,7 @@ fi
 if [ "$PPP" = "Y" ]; then
   if [ "$USBOPERATE" = "up" ]; then
     USB_IP=$(ifconfig usb0 | grep -Po 'inet \K[\d.]+')
-    echo "PPP=Y (USB) => up : $USB_IP"
+    ws_log_console "PPP=Y (USB) => up : $USB_IP"
   else
     ws_log "PPP=Y - USB interface is down. Turning it up"
     ifconfig usb0 up && ifup usb0
@@ -89,14 +89,14 @@ else
     ws_log "PPP=N - USB interface is up. Turning it down"
     ifconfig usb0 down && ifdown usb0
   else
-    echo "PPP=N => USB interface already down"
+    ws_log_console "PPP=N => USB interface already down"
   fi
 fi
 
 # Check if a default route exists
 DEFAULT_GW=$(/sbin/ip route | awk '/default/ { print $3 }')
 if [ -n "$DEFAULT_GW" ]; then
-  echo "Default route: ${DEFAULT_GW}"
+  ws_log_console "Default route: ${DEFAULT_GW}"
 else
   ws_log "No default route"
   # Example: try to add default route using USB dongle DHCP lease if interface is up.
@@ -113,7 +113,7 @@ PACKETS=1
 TARGET="www.windspots.com"
 RET=$(ping -c $PACKETS "$TARGET" 2>/dev/null | awk '/received/ {print $4}')
 if [ "$RET" = "1" ]; then
-  echo "Connected to Internet"
+  ws_log_console "Connected to Internet"
   touch "${TMP}/lastconnection"
   exit 0
 else
@@ -121,7 +121,7 @@ else
   TARGET2="1.1.1.1"
   RET2=$(ping -c $PACKETS "$TARGET2" 2>/dev/null | awk '/received/ {print $4}')
   if [ "$RET2" = "1" ]; then
-    echo "Connected to Internet via IP fallback."
+    ws_log_console "Connected to Internet via IP fallback."
     touch "${TMP}/lastconnection"
     exit 0
   else
