@@ -86,27 +86,27 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
   sqlStmt = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE, name TEXT, sensor_id TEXT, channel INTEGER, rollingcode INTEGER, battery TEXT, temperature TEXT, temperature_sign TEXT, relative_humidity TEXT, comfort TEXT, uv_index TEXT, rain_rate TEXT, total_rain TEXT, barometer TEXT, prediction TEXT, wind_direction TEXT, wind_speed TEXT, wind_speed_average TEXT)";
   rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
   if(rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "w3rpi EventManager::init SQL error: %s", sqlite3_errmsg(db));
+    snprintf(message, MESSAGE_SIZE, "EventManager::init SQL error: %s", sqlite3_errmsg(db));
     logIt();
     return false;
   }
   sqlStmt = "CREATE INDEX IF NOT EXISTS i1 ON data(last_update)";
   rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
   if(rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "w3rpi EventManager::init SQL error: %s", sqlite3_errmsg(db));
+    snprintf(message, MESSAGE_SIZE, "EventManager::init SQL error: %s", sqlite3_errmsg(db));
     logIt();
     return false;
   }
   sqlStmt = "CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE)";
   rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
   if(rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "w3rpi EventManager::init SQL error: %s", sqlite3_errmsg(db));
+    snprintf(message, MESSAGE_SIZE, "EventManager::init SQL error: %s", sqlite3_errmsg(db));
     logIt();
     return false;
   }
   rc = sqlite3_close(db);
   if(rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "w3rpi EventManager::init SQL error: %s", sqlite3_errmsg(db));
+    snprintf(message, MESSAGE_SIZE, "EventManager::init SQL error: %s", sqlite3_errmsg(db));
     logIt();
     return false;
   }
@@ -139,7 +139,7 @@ void EventManager::enqueue(int newEvent, char * _strValue) {
   if (_strValue != NULL) {
     if (strlen(_strValue) > w3rpi_EVENT_MAX_SIZE-1) {
       if(w3rpi_debug)
-        std::cerr << "w3rpi EventManager::enqueue TOO LONG for:" << _strValue << std::endl;
+        std::cerr << "EventManager::enqueue TOO LONG for:" << _strValue << std::endl;
     }
     strncpy(ev.strValue, _strValue, w3rpi_EVENT_MAX_SIZE-1);
     ev.strValue[w3rpi_EVENT_MAX_SIZE-1] = '\0';
@@ -148,7 +148,7 @@ void EventManager::enqueue(int newEvent, char * _strValue) {
   }
   pthread_mutex_lock(&eventListMutex);
   if(w3rpi_debug)
-    std::cerr << "w3rpi EventManager::enqueue:" << _strValue << std::endl;
+    std::cerr << "EventManager::enqueue:" << _strValue << std::endl;
   eventList.push_back(ev);
   pthread_mutex_unlock(&eventListMutex);
   pthread_cond_signal(&eventCond);  // Signal waiting thread
@@ -200,7 +200,7 @@ double EventManager::getThermistor(){
   int adc_value = ads->readADC_SingleEnded(1);
   double volts = (adc_value * 3.3) / 1648.0;
   if(w3rpi_debug)
-    std::cerr << "w3rpi EventManager::getThermistor volts = " << std::fixed << std::setprecision(2) << volts << std::endl;
+    std::cerr << "EventManager::getThermistor volts = " << std::fixed << std::setprecision(2) << volts << std::endl;
   if(volts > 0) {
     double ohm = round((3.3 - volts) / volts * 10000);
     double a =  0.0009333357965;
@@ -235,14 +235,14 @@ int EventManager::getBarometerSealevel(){
   int sealevel  = 0;
   if(!myBmp280->update()) {
     if(w3rpi_debug)
-                std::cerr << "w3rpi EventManager::eventLoop - Bmp280 error" << std::endl;
-    snprintf(message, MESSAGE_SIZE, "w3rpi EventManager::eventLoop - Bmp280 error\n");
+                std::cerr << "EventManager::eventLoop - Bmp280 error" << std::endl;
+    snprintf(message, MESSAGE_SIZE, "EventManager::eventLoop - Bmp280 error\n");
     logIt();
     return 0;
   }
   barometer = myBmp280->getPressure();
   if(w3rpi_debug)
-    std::cerr << "w3rpi EventManager::getBarometerSealevel barometer = " << std::fixed << std::setprecision(0) << barometer << std::endl;
+    std::cerr << "EventManager::getBarometerSealevel barometer = " << std::fixed << std::setprecision(0) << barometer << std::endl;
   if(barometer < 700)
     return 0;
   sealevel = static_cast<int>(barometer / pow(1.0 - static_cast<double>(altitude) / 44330.0, 5.255));
@@ -258,7 +258,7 @@ void EventManager::store(const char * _name, int channel, double battery, double
                          double windSpeedAverage) {
   if (_name == NULL) {
     if(w3rpi_debug)
-      std::cerr << "w3rpi EventManager::store _name == NULL" << std::endl;
+      std::cerr << "EventManager::store _name == NULL" << std::endl;
     return;
   }
   // Avoid logging heartbeat with no data
@@ -277,6 +277,7 @@ void EventManager::store(const char * _name, int channel, double battery, double
     strncpy(currentTime, "1970-01-01 00:00:00", sizeof(currentTime) - 1);
     currentTime[sizeof(currentTime) - 1] = '\0';
   }
+
   if(sqlite3_open(this->tmpFileName.c_str(), &db)) {
     snprintf(message, sizeof(message), "Can't open database: %s, error: %s",
              this->tmpFileName.c_str(), sqlite3_errmsg(db));
@@ -315,7 +316,7 @@ void EventManager::store(const char * _name, int channel, double battery, double
   }
 
   if(execRc != SQLITE_OK) {
-    snprintf(message, sizeof(message), "w3rpi EventManager::store SQL error: %s\n",
+    snprintf(message, sizeof(message), "EventManager::store SQL error: %s\n",
              err_msg != NULL ? err_msg : sqlite3_errmsg(db));
     logIt();
     if (err_msg != NULL) {
@@ -380,16 +381,16 @@ void * EventManager::eventLoop(void * _param) {
       switch(ev.eventType) {
         case w3rpi_EVENT_INIT:
           if(w3rpi_debug) {
-            std::cerr <<  "w3rpi EventManager::eventLoop INIT" << std::endl;
+            std::cerr <<  "EventManager::eventLoop INIT" << std::endl;
           }
           break;
         case w3rpi_EVENT_GETSENSORDATA:
           if(w3rpi_debug)
-            std::cerr <<  "w3rpi EventManager::eventLoop GETSENSORDATA" << std::endl;
+            std::cerr <<  "EventManager::eventLoop GETSENSORDATA" << std::endl;
           break;
         default:
           if(w3rpi_debug)
-            std::cerr <<  "w3rpi EventManager::eventLoop proceed UNKNOWN: " << ev.strValue << std::endl;
+            std::cerr <<  "EventManager::eventLoop proceed UNKNOWN: " << ev.strValue << std::endl;
           break;
       }
       pthread_mutex_lock(&myEventManager->eventListMutex);
