@@ -14,17 +14,17 @@
 <?php
   $version = trim((string) shell_exec('cat /opt/windspots/etc/version'));
   $windspots_ini = parse_ini_file('/opt/windspots/etc/main') ?: [];
-  $stationValue = $windspots_ini['STATION'] ?? '';
+  $station = $windspots_ini['STATION'] ?? '';
   $stationName = $windspots_ini['STATION_NAME'] ?? '';
 ?>
 
 <main class="container">
   <header class="row header-row">
-    <div class="col col-4 text-right">
-      <img id="logo" src="svg/windspots.svg" alt="Windspots logo" width="240" height="80">
+    <div class="col col-4 text-left'">
+      <img style="float:left" id="logo" src="svg/windspots.svg" alt="Windspots logo" width="240" height="80">
     </div>
-    <div class="col col-8 text-left">
-      <h1 id="stationName"></h1>
+    <div class="col col-8 text-center">
+      <h3><span id="station"></span>&nbsp;-&nbsp;<span id="stationName"></span></h3>
     </div>
   </header>
 
@@ -66,26 +66,27 @@
       <div class="kv"><span>Direction:</span><span id="windDirection"></span></div>
       <div class="kv"><span>Gust:</span><span id="rafale"></span></div>
       <div class="kv"><span>Temperature:</span><span id="temperature"></span></div>
-      <div class="kv"><span>Humidity:</span><span id="humidity"></span></div>
       <div class="kv"><span>Pressure:</span><span id="nmMb"></span></div>
     </div>
   </section>
+  
+  <footer class="row  footer-row">
+		<div class="col col-6 style='float:left'">
+	    <span>Copyright &copy; Windspots 2026</span>
+	  </div>
+	  <div class="col col-6 text-right">
+	    <span id="version"></span>
+	  </div>
+	</footer>
+
 </main>
-
-<footer class="container footer-row">
-  <div class="row">
-    <div class="col col-6 copyright">Copyright &copy; Windspots 2026</div>
-    <div class="col col-6 footerVersion" id="version"></div>
-  </div>
-</footer>
-
 <script>
 (() => {
   'use strict';
 
   const app = {
     version: <?php echo json_encode($version, JSON_UNESCAPED_UNICODE); ?>,
-    stationValue: <?php echo json_encode($stationValue, JSON_UNESCAPED_UNICODE); ?>,
+    station: <?php echo json_encode($station, JSON_UNESCAPED_UNICODE); ?>,
     stationName: <?php echo json_encode($stationName, JSON_UNESCAPED_UNICODE); ?>,
     girouetteOn: true,
     imageTick: 0,
@@ -95,10 +96,10 @@
   const ui = {
     title: document.querySelector('title'),
     stationName: document.getElementById('stationName'),
+    station: document.getElementById('station'),
     windArrow: document.getElementById('windArrow'),
     windDirection: document.getElementById('windDirection'),
     rafale: document.getElementById('rafale'),
-    humidity: document.getElementById('humidity'),
     temperature: document.getElementById('temperature'),
     nmMb: document.getElementById('nmMb'),
     hour: document.getElementById('hour'),
@@ -143,7 +144,6 @@
       setText(ui.windDirection, `${direction}°`);
       setText(ui.rafale, `${(speed * 3.6).toFixed(1)} Km/h`);
 
-      if (weather.humidity) setText(ui.humidity, `${weather.humidity}%`);
       if (weather.temperature) setText(ui.temperature, `${weather.temperature}°C`);
       if (weather.barometer) setText(ui.nmMb, `${weather.barometer} mb`);
 
@@ -158,8 +158,8 @@
 
   ui.title.textContent = `WS: ${app.stationValue}`;
   setText(ui.stationName, app.stationName);
+  setText(ui.station, app.station);
   setText(ui.windDirection, '0°');
-  setText(ui.humidity, '0%');
   setText(ui.temperature, '0°C');
   setText(ui.rafale, '0.0 Km/h');
   setText(ui.nmMb, '0 mb');
