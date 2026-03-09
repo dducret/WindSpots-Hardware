@@ -1,14 +1,79 @@
 <?php
-  header('Content-type: application/json');
-  $file="/var/tmp/infos";
-  $fp = fopen($file, "r") or die("Can't open $file");
-  $lines = "";
-  while(!feof($fp))  {
-    $line = fgets($fp);
-    $lines=$lines.$line;
-  }
-  fclose($fp);
-  shell_exec("rm /var/tmp/infos");
-  shell_exec("/usr/bin/php /opt/windspots/html/php/infosd.php >/var/tmp/infos &");
-  echo $lines;
+header('Content-type: application/json');
+
+function parse_ini_output($output) {
+    $parsed = parse_ini_string((string) $output);
+    return is_array($parsed) ? $parsed : array();
+}
+
+$values = array();
+
+// power values
+$alim = parse_ini_output(shell_exec('/opt/windspots/bin/cpp/WS200/getalim/getalim 2>/dev/null'));
+$values = array_merge($values, $alim);
+
+// i2c probes
+$i2cdetect = shell_exec('/usr/sbin/i2cdetect -y 1 2>/dev/null');
+foreach (array('40', '41', '43', '48', '77') as $addr) {
+    $pattern = '/\s' . $addr . '(\s|$)/'; 
+    $values['I2C' . $addr] = preg_match($pattern, $i2cdetect) ? '1' : '0';
+}
+
+// sensors
+$windspots_ini = @parse_ini_file('/opt/windspots/etc/main');
+$altitude = (is_array($windspots_ini) && isset($windspots_ini['ALTITUDE'])) ? $windspots_ini['ALTITUDE'] : '0';
+$bmp280 = parse_ini_output(shell_exec('/opt/windspots/bin/cpp/WS200/getbaro/getbaro -a ' . escapeshellarg((string) $altitude) . ' 2>/dev/null'));
+$ads1015 = parse_ini_output(shell_exec('/opt/windspots/bin/cpp/WS200/gettemp/gettemp 2>/dev/null'));
+
+$anemoOutput = (string) shell_exec('/opt/windspots/bin/cpp/WS200/getanemo/getanemo 2>/dev/null');
+$anemoLines = preg_split('/\r?\n/', trim($anemoOutput));
+$anemo1 = isset($anemoLines[0]) ? parse_ini_output($anemoLines[0]) : array();
+$anemo0 = isset($anemoLines[1]) ? parse_ini_output($anemoLines[1]) : array();
+
+// cellular status
+$hilink = parse_ini_output(shell_exec('/opt/windspots/bin/hi-status.sh 2>/dev/null'));
+$values['SIGNALICON'] = isset($hilink['SIGNALICON']) ? $hilink['SIGNALICON'] : '';
+$values['MAXSIGNAL'] = isset($hilink['MAXSIGNAL']) ? $hilink['MAXSIGNAL'] : '';
+$values['IPADDRESS'] = isset($hilink['IPADDRESS']) ? $hilink['IPADDRESS'] : '';
+$values['WORKMODE'] = isset($hilink['WORKMODE']) ? $hilink['WORKMODE'] : '';
+$values['FULLNAME'] = isset($hilink['FULLNAME']) ? $hilink['FULLNAME'] : '';
+
+// sensor fields used by UI
+$values['PRESSURE'] = isset($bmp280['PRESSURE']) ? $bmp280['PRESSURE'] : '';
+$values['SEALEVEL'] = isset($bmp280['SEALEVEL']) ? $bmp280['SEALEVEL'] : '';
+$values['INBOXTEMP'] = isset($bmp280['TEMPERATURE']) ? $bmp280['TEMPERATURE'] : '';
+$values['TEMPERATURE'] = isset($ads1015['TEMPERATURE']) ? $ads1015['TEMPERATURE'] : '';
+$values['DIRECTION'] = isset($anemo0['DIRECTION']) ? $anemo0['DIRECTION'] : '';
+$values['SPEED'] = isset($anemo1['SPEED']) ? $anemo1['SPEED'] : '';
+
+// display log
+$logFile = '/opt/windspots/log/windspots.log';
+$output = shell_exec("tail -n 9 " . escapeshellarg($logFile) . " 2>&1");
+$values['LOG'] = htmlspecialchars($output);
+
+// network
+$lan = shell_exec('cat /sys/class/net/eth0/operstate 2>/dev/null');
+$wlan = shell_exec('cat /sys/class/net/wlan0/operstate 2>/dev/null');
+$ppp = shell_exec('cat /sys/class/net/eth1/operstate 2>/dev/null');
+$lanIP = shell_exec("/sbin/ifconfig eth0 2>/dev/null | grep 'inet' | cut -d: -f2 | awk '{ print $2}'");
+$wlanIP = shell_exec("/sbin/ifconfig wlan0 2>/dev/null | grep 'inet' | cut -d: -f2 | awk '{ print $2}'");
+
+$values['lan'] = (strncmp($lan, 'up', 2) === 0) ? '1' : '0';
+$values['lanIP'] = (strncmp($lan, 'up', 2) === 0 && $lanIP !== '') ? $lanIP : '0.0.0.0';
+$values['wlan'] = (strncmp($wlan, 'up', 2) === 0) ? '1' : '0';
+$values['wlanIP'] = (strncmp($wlan, 'up', 2) === 0 && $wlanIP !== '') ? $wlanIP : '0.0.0.0';
+$values['ppp'] = (strncmp($ppp, 'up', 2) === 0) ? '1' : '0';
+$values['pppIP'] = (strncmp($ppp, 'up', 2) === 0 && isset($hilink['IPADDRESS']) && $hilink['IPADDRESS'] !== '') ? $hilink['IPADDRESS'] : '0.0.0.0';
+
+// ssid + image
+$values['ssid'] = shell_exec('/usr/sbin/iwgetid -r 2>/dev/null');
+$values['image'] = shell_exec('ls /var/tmp/img/ 2>/dev/null');
+
+$json = json_encode($values);
+if ($json === false) {
+    echo json_encode(array('error' => 'Unable to encode infos payload'));
+    exit;
+}
+
+echo $json;
 ?>
