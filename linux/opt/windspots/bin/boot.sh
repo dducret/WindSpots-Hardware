@@ -11,6 +11,7 @@ touch "${TMP}/lastconnection" "${TMP}/lastimage" "${LOG}/windspots.log"
 # Launch configuration and network check in background
 "${WINDSPOTS_BIN}/ws-configure.sh" > /dev/null 2>&1 &
 "${WINDSPOTS_BIN}/check-network.sh" > /dev/null 2>&1 &
+"${WINDSPOTS_BIN}/mesh-check.sh" > /dev/null 2>&1 &
 
 # Disable SysRq
 echo 0 > /proc/sys/kernel/sysrq

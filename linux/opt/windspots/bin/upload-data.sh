@@ -1,6 +1,4 @@
 #!/bin/sh
-killall php 2>/dev/null
-rm -f /tmp/upload-data.sh.pid
 . "$(dirname "$0")/common.sh"  # common windspots scripts
 
 FILEDATE=$(stat -c %Y "$WINDSPOTS_LASTIMAGE")

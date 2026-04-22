@@ -18,6 +18,7 @@
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <linux/gpio.h>
+#include <cctype>
 #include "w3rpi.h"
 #include "eventManager.h"
 
@@ -149,7 +150,7 @@ int main(int argc, char *argv[]) {
     if ((arg == "-s") || (arg == "--station")) {
       knownOption = true;
       if (i + 1 < argc) {
-        station = argv[i + 1];
+        station = argv[++i];
       } else {
         std::cerr << "--station option requires one argument." << std::endl;
         return 1;
@@ -158,7 +159,7 @@ int main(int argc, char *argv[]) {
     if ((arg == "-d") || (arg == "--dir-adjustment")) {
       knownOption = true;
       if (i + 1 < argc) {
-        direction = argv[i+1];
+        direction = argv[++i];
       } else {
         std::cerr << "--dir-adjustment option requires one argument." << std::endl;
         return 1;
@@ -167,7 +168,7 @@ int main(int argc, char *argv[]) {
     if ((arg == "-a") || (arg == "--altitude")) {
     	knownOption = true;
       if (i + 1 < argc) {
-          altitude = argv[i+1];
+          altitude = argv[++i];
       } else {
           std::cerr << "--altitude option requires one argument." << std::endl;
           return 1;
@@ -176,8 +177,7 @@ int main(int argc, char *argv[]) {
     if ((arg == "-n") || (arg == "--anemometer")) {
       knownOption = true;
       if (i + 1 < argc) {
-          first = argv[i+1][0];
-          first = toupper(first);
+          first = static_cast<char>(std::toupper(static_cast<unsigned char>(argv[++i][0])));
           if(first == 'Y') {
             anemometer = true;
           }
@@ -189,8 +189,7 @@ int main(int argc, char *argv[]) {
     if ((arg == "-p") || (arg == "--temperature")) {
       knownOption = true;
       if (i + 1 < argc) {
-          first = argv[i+1][0];
-          first = toupper(first);
+          first = static_cast<char>(std::toupper(static_cast<unsigned char>(argv[++i][0])));
           if(first == 'Y') {
             temperature = true;
           }
@@ -202,8 +201,7 @@ int main(int argc, char *argv[]) {
     if ((arg == "-o") || (arg == "--solar")) {
       knownOption = true;
       if (i + 1 < argc) {
-          first = argv[i+1][0];
-          first = toupper(first);
+          first = static_cast<char>(std::toupper(static_cast<unsigned char>(argv[++i][0])));
           if(first == 'Y') {
             solar = true;
           }
@@ -215,7 +213,7 @@ int main(int argc, char *argv[]) {
     if ((arg == "-l") || (arg == "--log")) {
       knownOption = true;
       if (i + 1 < argc) {
-          log = argv[i+1];
+          log = argv[++i];
       } else {
           std::cerr << "--log option requires one argument." << std::endl;
           return 1;
@@ -224,7 +222,7 @@ int main(int argc, char *argv[]) {
     if ((arg == "-t") || (arg == "--tmp")) {
       knownOption = true;
       if (i + 1 < argc) {
-          tmp = argv[i+1];
+          tmp = argv[++i];
       } else {
           std::cerr << "--tmp option requires one argument." << std::endl;
           return 1;
@@ -233,8 +231,7 @@ int main(int argc, char *argv[]) {
     if (arg == "--debug") {
       knownOption = true;
       if (i + 1 < argc) {
-          first = argv[i+1][0];
-          first = toupper(first);
+          first = static_cast<char>(std::toupper(static_cast<unsigned char>(argv[++i][0])));
           if(first == 'Y') {
             w3rpi_debug = true;
           }
@@ -251,7 +248,7 @@ int main(int argc, char *argv[]) {
     }
   }
   
-  EventManager eventManager((char *)"rfrpi0");
+  EventManager eventManager("rfrpi0");
   g_event_manager = &eventManager;
 
   int iAltitude = atoi(altitude.c_str());

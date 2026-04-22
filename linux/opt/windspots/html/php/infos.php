@@ -6,6 +6,14 @@ function parse_ini_output($output) {
     return is_array($parsed) ? $parsed : array();
 }
 
+function read_operstate($iface) {
+    return (string) shell_exec('cat /sys/class/net/' . escapeshellarg($iface) . '/operstate 2>/dev/null');
+}
+
+function read_ipv4($iface) {
+    return trim((string) shell_exec('/sbin/ip -4 addr show ' . escapeshellarg($iface) . " 2>/dev/null | awk '/inet / {print \$2}' | cut -d/ -f1 | head -n 1"));
+}
+
 $values = array();
 
 // power values
@@ -52,11 +60,12 @@ $output = shell_exec("tail -n 9 " . escapeshellarg($logFile) . " 2>&1");
 $values['LOG'] = htmlspecialchars($output);
 
 // network
-$lan = shell_exec('cat /sys/class/net/eth0/operstate 2>/dev/null');
-$wlan = shell_exec('cat /sys/class/net/wlan0/operstate 2>/dev/null');
-$ppp = shell_exec('cat /sys/class/net/eth1/operstate 2>/dev/null');
-$lanIP = shell_exec("/sbin/ifconfig eth0 2>/dev/null | grep 'inet' | cut -d: -f2 | awk '{ print $2}'");
-$wlanIP = shell_exec("/sbin/ifconfig wlan0 2>/dev/null | grep 'inet' | cut -d: -f2 | awk '{ print $2}'");
+$lan = read_operstate('eth0');
+$wlan = read_operstate('wlan0');
+$pppIface = file_exists('/sys/class/net/usb0/operstate') ? 'usb0' : 'eth1';
+$ppp = read_operstate($pppIface);
+$lanIP = read_ipv4('eth0');
+$wlanIP = read_ipv4('wlan0');
 
 $values['lan'] = (strncmp($lan, 'up', 2) === 0) ? '1' : '0';
 $values['lanIP'] = (strncmp($lan, 'up', 2) === 0 && $lanIP !== '') ? $lanIP : '0.0.0.0';

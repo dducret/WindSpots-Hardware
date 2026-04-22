@@ -342,6 +342,11 @@
 <?php
     $version = shell_exec("cat /opt/windspots/etc/version");
     $windspots_ini = parse_ini_file("/opt/windspots/etc/main");
+    $fswebcam_config = @file_get_contents('/opt/windspots/etc/fswebcam.conf');
+    $camAdjustValue = '0';
+    if ($fswebcam_config !== false && preg_match('/^crop\s+\d+x\d+,0x(\d+)/m', $fswebcam_config, $matches)) {
+      $camAdjustValue = $matches[1];
+    }
     $version = str_replace(array("\n", "\r"), '', $version);
 ?>
     var version="<?php echo $version;?>";
@@ -359,7 +364,7 @@
     var pppValue=<?php if(strcmp($windspots_ini['PPP'],"N")) { echo 'true'; } else { echo 'false'; } ?>;
     var pppProvider="";
     var camRotateValue="<?php echo $windspots_ini['CAMROTATE'];?>";
-    var camAdjustValue="<?php echo $windspots_ini['CAMADJUST'];?>";
+    var camAdjustValue="<?php echo $camAdjustValue; ?>";
     
     var ssidValue="";
     var connexionStat=true;

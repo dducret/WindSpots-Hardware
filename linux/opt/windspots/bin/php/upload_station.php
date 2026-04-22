@@ -1,5 +1,7 @@
 <?php
-// Improved station registration script.
+// Register station metadata on WindSpots.
+
+const CURL_TIMEOUT = 20;
 
 // Retrieve command line arguments with defaults.
 $stationName  = $argv[1]  ?? "CHGE99";
@@ -68,10 +70,14 @@ curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+curl_setopt($ch, CURLOPT_TIMEOUT, CURL_TIMEOUT);
 $result = curl_exec($ch);
 if (curl_errno($ch)) {
     logIt("cURL error: " . curl_error($ch));
     logIt("Response: " . $result);
+} elseif (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 200) {
+    logIt("HTTP response code for $registerURL: " . curl_getinfo($ch, CURLINFO_HTTP_CODE));
 } else {
     logIt("Registration successful for: $registerURL");
 }

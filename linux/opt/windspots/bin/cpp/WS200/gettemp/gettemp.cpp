@@ -72,9 +72,9 @@ int main()
         return 1;
     }
 
-    std::printf("TEMPERATURE=%.1f C\n"
-                "OHM=%.1f Ω\n"
-                "VOLTAGE=%.4f V\n"
+    std::printf("TEMPERATURE=%.1f\n"
+                "OHM=%.1f\n"
+                "VOLTAGE=%.4f\n"
                 "RAW=%d\n",
                 temperature_c, resistance_ohm, volts, adc_value);
 

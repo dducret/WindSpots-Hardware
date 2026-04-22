@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <list>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <sqlite3.h>
 #include "../lib/bmp280/bmp280.h"
@@ -26,7 +27,7 @@ class EventManager {
     pthread_t      myThread;              // Thread handle
     pthread_mutex_t  eventListMutex;       // Mutex for queue
     pthread_cond_t   eventCond;            // Condition variable for new events
-    char * piId;
+    const char * piId;
     volatile bool running;                // Flag to control thread loop
 
     static void * eventLoop(void *);
@@ -39,22 +40,21 @@ class EventManager {
     bool bAnemometer;
     bool bSolar;
     bool bDebug;
-    bmp280 *myBmp280; 
-    ina219 *inaBattery0;
-    ina219 *inaSolar0;
-    ina219 *ina5v;
-    ads1015 *ads;
+    std::unique_ptr<bmp280> myBmp280;
+    std::unique_ptr<ina219> inaBattery0;
+    std::unique_ptr<ina219> inaSolar0;
+    std::unique_ptr<ina219> ina5v;
+    std::unique_ptr<ads1015> ads;
+    sqlite3 *db;
+    sqlite3_stmt *storeStmt;
 
     int anemometerCounter;
     long int fastestCount;
     long int firstCount;
     long int lastCount;
-    sqlite3 *db;
-    char sql[256];
-    char sql2[256];
     char currentTime[32];
   public:
-    EventManager(char * _piId);
+    EventManager(const char * _piId);
     ~EventManager();
     bool init(std::string log, std::string tmp, int altitude, int direction, bool temperature, bool anemometer, bool solar);
     void logIt();

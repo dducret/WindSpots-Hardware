@@ -1,6 +1,5 @@
 <?php
-// Improved WPA configuration generator.
-// This script builds the wpa_supplicant configuration by reading SSID and passphrase info from a source file.
+// Build wpa_supplicant.conf from /opt/windspots/etc/wpa.
 
 $wpaFile = '/etc/wpa_supplicant/wpa_supplicant.conf';
 $wpaSourceFile = '/opt/windspots/etc/wpa';
@@ -24,7 +23,7 @@ if (file_exists($wpaSourceFile)) {
             $passphrase = escapeshellarg(trim($parts[1]));
             // Generate WPA PSK using the system command.
             $wpaPSK = shell_exec("wpa_passphrase $ssid $passphrase");
-            if ($wpaPSK !== null) {
+            if (is_string($wpaPSK) && trim($wpaPSK) !== '') {
                 $wpaConfigLines[] = trim($wpaPSK);
             }
         }

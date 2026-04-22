@@ -26,7 +26,26 @@ static void writeWindValues(double direction, double speed)
              << std::setprecision(0) << direction << std::endl;
 }
 
-EventManager::EventManager(char * _piId) : piId(_piId), running(true) {
+static bool execSql(sqlite3 *db, const char *sql, char *messageBuffer, size_t messageBufferSize)
+{
+  char *errMsg = NULL;
+  const int rc = sqlite3_exec(db, sql, NULL, NULL, &errMsg);
+  if (rc == SQLITE_OK) {
+    return true;
+  }
+
+  snprintf(messageBuffer, messageBufferSize, "SQLite error: %s", errMsg != NULL ? errMsg : sqlite3_errmsg(db));
+  if (errMsg != NULL) {
+    sqlite3_free(errMsg);
+  }
+  return false;
+}
+
+EventManager::EventManager(const char * _piId)
+    : piId(_piId),
+      running(true),
+      db(NULL),
+      storeStmt(NULL) {
   eventListMutex = PTHREAD_MUTEX_INITIALIZER;
   pthread_cond_init(&eventCond, NULL);
   pthread_create(&myThread, NULL, eventLoop, this);
@@ -37,14 +56,17 @@ EventManager::~EventManager() {
   // Signal the condition variable to unblock eventLoop if waiting.
   pthread_cond_signal(&eventCond);
   pthread_join(myThread, NULL);
-
-  delete myBmp280;
-  delete inaBattery0;
-  delete inaSolar0;
-  delete ina5v;
-  delete ads;
+  if (storeStmt != NULL) {
+    sqlite3_finalize(storeStmt);
+    storeStmt = NULL;
+  }
+  if (db != NULL) {
+    sqlite3_close(db);
+    db = NULL;
+  }
 
   pthread_cond_destroy(&eventCond);
+  pthread_mutex_destroy(&eventListMutex);
 }
 
 bool EventManager::init(std::string log, std::string tmp, int anemometer_altitude, int direction, bool b_temperature, bool b_anemometer, bool b_solar) {
@@ -52,7 +74,6 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
   fastestCount = 0;
   firstCount = 0;
   lastCount = 0;
-  int rc = 0;
   logFileName = log + "/windspots.log";
   tmpFileName = tmp + "/ws.db";
   altitude = anemometer_altitude;
@@ -69,47 +90,45 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
     logIt();
   }
   // Initialize sensors
-  myBmp280 = new bmp280();
-  inaBattery0 = new ina219(0x41);
-  inaSolar0 = new ina219(0x40);
-  ina5v = new ina219(0x43);
-  ads = new ads1015(0x48);
+  myBmp280.reset(new bmp280());
+  inaBattery0.reset(new ina219(0x41));
+  inaSolar0.reset(new ina219(0x40));
+  ina5v.reset(new ina219(0x43));
+  ads.reset(new ads1015(0x48));
 
   // Create database if not exist
   if(sqlite3_open(this->tmpFileName.c_str(), &db)) {
     snprintf(message, MESSAGE_SIZE, "Can't open database: %s, error: %s", this->tmpFileName.c_str(), sqlite3_errmsg(db));
     logIt();
+    sqlite3_close(db);
+    db = NULL;
     return false;
   }
   sqlite3_busy_timeout(db, 1000);
-  const char *sqlStmt;
-  sqlStmt = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE, name TEXT, sensor_id TEXT, channel INTEGER, rollingcode INTEGER, battery TEXT, temperature TEXT, temperature_sign TEXT, relative_humidity TEXT, comfort TEXT, uv_index TEXT, rain_rate TEXT, total_rain TEXT, barometer TEXT, prediction TEXT, wind_direction TEXT, wind_speed TEXT, wind_speed_average TEXT)";
-  rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
-  if(rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "EventManager::init SQL error: %s", sqlite3_errmsg(db));
+
+  if (!execSql(db, "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE, name TEXT, sensor_id TEXT, channel INTEGER, rollingcode INTEGER, battery TEXT, temperature TEXT, temperature_sign TEXT, relative_humidity TEXT, comfort TEXT, uv_index TEXT, rain_rate TEXT, total_rain TEXT, barometer TEXT, prediction TEXT, wind_direction TEXT, wind_speed TEXT, wind_speed_average TEXT)", message, sizeof(message)) ||
+      !execSql(db, "CREATE INDEX IF NOT EXISTS i1 ON data(last_update)", message, sizeof(message)) ||
+      !execSql(db, "CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE)", message, sizeof(message))) {
     logIt();
+    sqlite3_close(db);
+    db = NULL;
     return false;
   }
-  sqlStmt = "CREATE INDEX IF NOT EXISTS i1 ON data(last_update)";
-  rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
-  if(rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "EventManager::init SQL error: %s", sqlite3_errmsg(db));
+
+  const char *insertSql =
+      "INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign, "
+      "relative_humidity, barometer, wind_direction, wind_speed, wind_speed_average) "
+      "VALUES (?, ?, ?, ?, ?, '0', ?, ?, ?, ?, ?)";
+  const int rc = sqlite3_prepare_v2(db, insertSql, -1, &storeStmt, NULL);
+  if (rc != SQLITE_OK) {
+    snprintf(message, MESSAGE_SIZE, "EventManager::init prepare SQL error: %s", sqlite3_errmsg(db));
     logIt();
+    sqlite3_close(db);
+    db = NULL;
+    storeStmt = NULL;
     return false;
   }
-  sqlStmt = "CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY AUTOINCREMENT, last_update DATE)";
-  rc = sqlite3_exec(db, sqlStmt, NULL, NULL, NULL);
-  if(rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "EventManager::init SQL error: %s", sqlite3_errmsg(db));
-    logIt();
-    return false;
-  }
-  rc = sqlite3_close(db);
-  if(rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "EventManager::init SQL error: %s", sqlite3_errmsg(db));
-    logIt();
-    return false;
-  }
+
   return true;
 }
 
@@ -267,7 +286,6 @@ void EventManager::store(const char * _name, int channel, double battery, double
     snprintf(message, sizeof(message), "%s-%d - Heartbeat", _name, channel);
     return;
   }
-  char *err_msg = NULL;
   timeval tp;
   gettimeofday(&tp, 0);
   time_t curtime = tp.tv_sec;
@@ -278,54 +296,59 @@ void EventManager::store(const char * _name, int channel, double battery, double
     currentTime[sizeof(currentTime) - 1] = '\0';
   }
 
-  if(sqlite3_open(this->tmpFileName.c_str(), &db)) {
-    snprintf(message, sizeof(message), "Can't open database: %s, error: %s",
-             this->tmpFileName.c_str(), sqlite3_errmsg(db));
+  if (db == NULL || storeStmt == NULL) {
+    snprintf(message, sizeof(message), "EventManager::store database is not initialized");
     logIt();
     return;
   }
-  sqlite3_busy_timeout(db, 1000);
-  
-  char sqlQuery[512];
-  int ret = snprintf(sqlQuery, sizeof(sqlQuery),
-      "INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign, "
-      "relative_humidity, barometer, wind_direction, wind_speed, wind_speed_average) "
-      "VALUES ('%s', '%s', %d, '%0.1f', '%0.1f', '0', '%0.f', '%u', '%0.1f', '%0.2f', '%0.2f');",
-      currentTime, _name, channel, battery, temperature, humidity, barometer, windDirection, windSpeed, windSpeedAverage);
-  if(ret < 0 || ret >= (int) sizeof(sqlQuery)) {
-    snprintf(message, sizeof(message), "SQL query buffer overflow detected");
-    logIt();
-    sqlite3_close(db);
-    return;
-  }
+
+  sqlite3_reset(storeStmt);
+  sqlite3_clear_bindings(storeStmt);
+  sqlite3_bind_text(storeStmt, 1, currentTime, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(storeStmt, 2, _name, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int(storeStmt, 3, channel);
+  sqlite3_bind_double(storeStmt, 4, battery);
+  sqlite3_bind_double(storeStmt, 5, temperature);
+  sqlite3_bind_double(storeStmt, 6, humidity);
+  sqlite3_bind_int(storeStmt, 7, barometer);
+  sqlite3_bind_double(storeStmt, 8, windDirection);
+  sqlite3_bind_double(storeStmt, 9, windSpeed);
+  sqlite3_bind_double(storeStmt, 10, windSpeedAverage);
+
   int execRc = SQLITE_ERROR;
   for (int attempt = 0; attempt < 5; ++attempt) {
-    execRc = sqlite3_exec(db, sqlQuery, NULL, NULL, &err_msg);
-    if (execRc == SQLITE_OK) {
+    execRc = sqlite3_step(storeStmt);
+    if (execRc == SQLITE_DONE) {
       break;
     }
     if (execRc == SQLITE_BUSY || execRc == SQLITE_LOCKED) {
-      if (err_msg != NULL) {
-        sqlite3_free(err_msg);
-        err_msg = NULL;
-      }
+      sqlite3_reset(storeStmt);
+      sqlite3_clear_bindings(storeStmt);
+      sqlite3_bind_text(storeStmt, 1, currentTime, -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(storeStmt, 2, _name, -1, SQLITE_TRANSIENT);
+      sqlite3_bind_int(storeStmt, 3, channel);
+      sqlite3_bind_double(storeStmt, 4, battery);
+      sqlite3_bind_double(storeStmt, 5, temperature);
+      sqlite3_bind_double(storeStmt, 6, humidity);
+      sqlite3_bind_int(storeStmt, 7, barometer);
+      sqlite3_bind_double(storeStmt, 8, windDirection);
+      sqlite3_bind_double(storeStmt, 9, windSpeed);
+      sqlite3_bind_double(storeStmt, 10, windSpeedAverage);
       usleep(100000);
       continue;
     }
     break;
   }
 
-  if(execRc != SQLITE_OK) {
-    snprintf(message, sizeof(message), "EventManager::store SQL error: %s\n",
-             err_msg != NULL ? err_msg : sqlite3_errmsg(db));
+  if(execRc != SQLITE_DONE) {
+    snprintf(message, sizeof(message), "EventManager::store SQL error: %s", sqlite3_errmsg(db));
     logIt();
-    if (err_msg != NULL) {
-      sqlite3_free(err_msg);
-    }
-    sqlite3_close(db);
+    sqlite3_reset(storeStmt);
+    sqlite3_clear_bindings(storeStmt);
     return;
   }
-  sqlite3_close(db);
+  sqlite3_reset(storeStmt);
+  sqlite3_clear_bindings(storeStmt);
 
   // Build a log message with safe concatenation.
   if(battery != 0)
@@ -371,6 +394,10 @@ void * EventManager::eventLoop(void * _param) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_nsec += 5 * 1000000; // 5ms
+    if (ts.tv_nsec >= 1000000000L) {
+      ts.tv_sec += ts.tv_nsec / 1000000000L;
+      ts.tv_nsec %= 1000000000L;
+    }
     pthread_cond_timedwait(&myEventManager->eventCond, &myEventManager->eventListMutex, &ts);
 
     while (!myEventManager->eventList.empty()) {

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 . "$(dirname "$0")/common.sh"  # common windspots scripts
 
 ws_log "Request RJ45 $1"

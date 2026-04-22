@@ -16,6 +16,30 @@
     return true;
   }
 
+  function shellEncodeValue($value) {
+    if ($value === null) {
+      $value = '';
+    }
+    $value = (string) $value;
+    return '"' . str_replace(array('\\', '"'), array('\\\\', '\\"'), $value) . '"';
+  }
+
+  function updateShellConfig($content, $updates) {
+    $lines = preg_split("/\\r?\\n/", (string) $content);
+    foreach ($lines as &$line) {
+      if (!preg_match('/^([A-Z][A-Z0-9_]*)=(.*)$/', $line, $matches)) {
+        continue;
+      }
+      $key = $matches[1];
+      if (!array_key_exists($key, $updates)) {
+        continue;
+      }
+      $line = $key . '=' . $updates[$key];
+    }
+    unset($line);
+    return implode("\n", $lines);
+  }
+
   $main_file = "/opt/windspots/etc/main";
   $fswebcam_file = "/opt/windspots/etc/fswebcam.conf";
 
@@ -46,7 +70,11 @@
   $altitude = isset($windspots_ini['ALTITUDE']) ? $windspots_ini['ALTITUDE'] : '';
   $dir_adj = isset($windspots_ini['DIRADJ']) ? $windspots_ini['DIRADJ'] : '';
   $cam_rotate = isset($windspots_ini['CAMROTATE']) ? intval($windspots_ini['CAMROTATE'],10) : 0;
-  $cam_adj = isset($windspots_ini['CAMADJUST']) ? $windspots_ini['CAMADJUST'] : '';
+  $cam_adj = '0';
+  $fswebcam_content = @file_get_contents($fswebcam_file);
+  if ($fswebcam_content !== false && preg_match('/^crop\\s+\\d+x\\d+,0x(\\d+)/m', $fswebcam_content, $matches)) {
+    $cam_adj = $matches[1];
+  }
   $anemo = isset($windspots_ini['WSANEMO']) ? $windspots_ini['WSANEMO'] : '';
   $temp = isset($windspots_ini['WSTEMP']) ? $windspots_ini['WSTEMP'] : '';
   $solar = isset($windspots_ini['WSSOLAR']) ? $windspots_ini['WSSOLAR'] : '';
@@ -79,30 +107,31 @@
   if ($content === false) {
     $errors[] = "Unable to read configuration file: " . $main_file;
   } else {
+    $updates = array();
     if(isset($_POST['station']))
-      $content = str_replace("STATION=".$station, "STATION=".$_POST['station'], $content);
+      $updates['STATION'] = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $_POST['station']);
     if(isset($_POST['station_name']))
-      $content = str_replace("STATION_NAME=\"".$station_name."\"", "STATION_NAME=\"".$_POST['station_name']."\"", $content);
+      $updates['STATION_NAME'] = shellEncodeValue($_POST['station_name']);
     if(isset($_POST['altitude']))
-      $content = str_replace("ALTITUDE=".$altitude, "ALTITUDE=".$_POST['altitude'], $content);
+      $updates['ALTITUDE'] = (string) intval($_POST['altitude'], 10);
     if(isset($_POST['dir_adj']))
-      $content = str_replace("DIRADJ=".$dir_adj, "DIRADJ=".$_POST['dir_adj'], $content);
+      $updates['DIRADJ'] = (string) intval($_POST['dir_adj'], 10);
     if(isset($_POST['camrotate']))
-      $content = str_replace("CAMROTATE=".$cam_rotate, "CAMROTATE=".$new_cam_rotate, $content);
-    if(isset($_POST['cam_adj']))
-      $content = str_replace("CAMADJUST=".$cam_adj, "CAMADJUST=".$_POST['cam_adj'], $content);
+      $updates['CAMROTATE'] = (string) $new_cam_rotate;
     if(isset($_POST['anemo']))
-      $content = str_replace("WSANEMO=".$anemo, "WSANEMO=".$_POST['anemo'], $content);
+      $updates['WSANEMO'] = $_POST['anemo'] === 'Y' ? 'Y' : 'N';
     if(isset($_POST['solar']))
-      $content = str_replace("WSSOLAR=".$solar, "WSSOLAR=".$_POST['solar'], $content);
+      $updates['WSSOLAR'] = $_POST['solar'] === 'Y' ? 'Y' : 'N';
     if(isset($_POST['temp']))
-      $content = str_replace("WSTEMP=".$temp, "WSTEMP=".$_POST['temp'], $content);
+      $updates['WSTEMP'] = $_POST['temp'] === 'Y' ? 'Y' : 'N';
     if(isset($_POST['rj45']))
-      $content = str_replace("RJ45=".$rj45, "RJ45=".$_POST['rj45'], $content);
+      $updates['RJ45'] = $_POST['rj45'] === 'Y' ? 'Y' : 'N';
     if(isset($_POST['wifi']))
-      $content = str_replace("WIFI=".$wifi, "WIFI=".$_POST['wifi'], $content);
+      $updates['WIFI'] = $_POST['wifi'] === 'Y' ? 'Y' : 'N';
     if(isset($_POST['ppp']))
-      $content = str_replace("PPP=".$ppp, "PPP=".$_POST['ppp'], $content);
+      $updates['PPP'] = $_POST['ppp'] === 'Y' ? 'Y' : 'N';
+
+    $content = updateShellConfig($content, $updates);
 
     if (@file_put_contents($main_file, $content) === false) {
       $errors[] = "Unable to write configuration file: " . $main_file;
@@ -111,10 +140,10 @@
     }
   }
 
-  $content = @file_get_contents($fswebcam_file);
-  if ($content === false) {
+  if ($fswebcam_content === false) {
     $errors[] = "Unable to read camera configuration file: " . $fswebcam_file;
   } else {
+    $content = $fswebcam_content;
     if(isset($_POST['cam_adj']))
       $content = str_replace("crop 2304x648,0x".$cam_adj, "crop 2304x648,0x".$_POST['cam_adj'], $content);
 

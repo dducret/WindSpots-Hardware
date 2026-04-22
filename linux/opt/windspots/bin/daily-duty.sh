@@ -1,14 +1,14 @@
 #!/bin/sh
-. `dirname $0`/common.sh        # common windspots scripts
+. "$(dirname "$0")/common.sh"  # common windspots scripts
 DESC="Daily Duty - Clean tmp"
-echo $DESC
-rm -f ${TMP}/lastconnection
-rm -f ${TMP}/lastimage
-rm -f ${TMP}/input.jpg
-rm -f ${LOG}/windspots.log
-touch ${TMP}/lastconnection
-touch ${TMP}/lastimage
-touch ${LOG}/windspots.log
+echo "$DESC"
+rm -f "${TMP}/lastconnection"
+rm -f "${TMP}/lastimage"
+rm -f "${TMP}/input.jpg"
+rm -f "${LOG}/windspots.log"
+touch "${TMP}/lastconnection"
+touch "${TMP}/lastimage"
+touch "${LOG}/windspots.log"
 chown www-data:www-data /var/log/windspots.log
 rm -f /var/log/nginx/*
 service nginx restart
@@ -30,8 +30,8 @@ service nginx restart
 >/var/log/wtmp
 rm -f /var/log/*.1
 # reset database
-cd $TMP
+cd "$TMP" || exit 1
 /bin/gzip -f -9 ws.db
 /usr/bin/touch ws.db
 /bin/chown www-data:www-data ws.db
-$WINDSPOTS_BIN/initwsdb -s ${STATION} -l ${LOG} -t ${TMP}
+"$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"

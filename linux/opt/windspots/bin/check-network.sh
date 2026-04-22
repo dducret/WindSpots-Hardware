@@ -21,7 +21,12 @@ get_operstate() {
     else
         state="down"
     fi
-    ws_log_console "$state"
+    echo "$state"
+}
+
+get_iface_ip() {
+    local iface="$1"
+    ip -4 addr show "$iface" 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n 1
 }
 
 # Check interface operstates
@@ -29,20 +34,21 @@ LANOPERATE=$(get_operstate eth0)
 WLANOPERATE=$(get_operstate wlan0)
 # No longer using eth1 for PPP; USB dongle is now on usb0
 if [ -f /sys/class/net/usb0/operstate ]; then
-    USBOPERATE=$(get_operstate usb0)
+    PPP_IFACE="usb0"
 else
-    USBOPERATE=$(get_operstate eth1)
+    PPP_IFACE="eth1"
 fi
+USBOPERATE=$(get_operstate "$PPP_IFACE")
 
 # Display state info for logging purposes
 ws_log_console "RJ45 (eth0): $LANOPERATE"
 ws_log_console "WIFI (wlan0): $WLANOPERATE"
-ws_log_console "USB dongle (usb0): $USBOPERATE"
+ws_log_console "PPP interface (${PPP_IFACE}): $USBOPERATE"
 
 # Manage RJ45 interface (eth0)
 if [ "$RJ45" = "Y" ]; then
   if [ "$LANOPERATE" = "up" ]; then
-    ETH0_IP=$(ifconfig eth0 | grep -Po 'inet \K[\d.]+')
+    ETH0_IP=$(get_iface_ip eth0)
     ws_log_console "RJ45=Y => up : $ETH0_IP"
   else
     ws_log "RJ45=Y - Interface is down. Turning it up"
@@ -60,7 +66,7 @@ fi
 # Manage WIFI interface (wlan0)
 if [ "$WIFI" = "Y" ]; then
   if [ "$WLANOPERATE" = "up" ]; then
-    WLAN0_IP=$(ifconfig wlan0 | grep -Po 'inet \K[\d.]+')
+    WLAN0_IP=$(get_iface_ip wlan0)
     ws_log_console "WIFI=Y => up : $WLAN0_IP"
   else
     ws_log "WIFI=Y - Interface is $WLANOPERATE. Turning it up"
@@ -78,18 +84,18 @@ fi
 # Manage USB dongle as PPP interface
 if [ "$PPP" = "Y" ]; then
   if [ "$USBOPERATE" = "up" ]; then
-    USB_IP=$(ifconfig usb0 | grep -Po 'inet \K[\d.]+')
-    ws_log_console "PPP=Y (USB) => up : $USB_IP"
+    USB_IP=$(get_iface_ip "$PPP_IFACE")
+    ws_log_console "PPP=Y (${PPP_IFACE}) => up : $USB_IP"
   else
-    ws_log "PPP=Y - USB interface is down. Turning it up"
-    ifconfig usb0 up && ifup usb0
+    ws_log "PPP=Y - ${PPP_IFACE} interface is down. Turning it up"
+    ifconfig "$PPP_IFACE" up && ifup "$PPP_IFACE"
   fi
 else
   if [ "$USBOPERATE" = "up" ]; then
-    ws_log "PPP=N - USB interface is up. Turning it down"
-    ifconfig usb0 down && ifdown usb0
+    ws_log "PPP=N - ${PPP_IFACE} interface is up. Turning it down"
+    ifconfig "$PPP_IFACE" down && ifdown "$PPP_IFACE"
   else
-    ws_log_console "PPP=N => USB interface already down"
+    ws_log_console "PPP=N => ${PPP_IFACE} interface already down"
   fi
 fi
 
@@ -99,9 +105,8 @@ if [ -n "$DEFAULT_GW" ]; then
   ws_log_console "Default route: ${DEFAULT_GW}"
 else
   ws_log "No default route"
-  # Example: try to add default route using USB dongle DHCP lease if interface is up.
-  if [ "$(get_operstate usb0)" = "up" ]; then
-    DEFAULT_ROUTE=$(grep routers /var/lib/dhcp/dhclient.usb0.leases 2>/dev/null | sort -u | cut -d ' ' -f 5 | sed -e 's/;//')
+  if [ "$(get_operstate "$PPP_IFACE")" = "up" ]; then
+    DEFAULT_ROUTE=$(grep routers "/var/lib/dhcp/dhclient.${PPP_IFACE}.leases" 2>/dev/null | sort -u | cut -d ' ' -f 5 | sed -e 's/;//')
     if [ -n "$DEFAULT_ROUTE" ]; then
       route add -net 0.0.0.0/0 gw "$DEFAULT_ROUTE"
     fi
@@ -133,4 +138,4 @@ fi
 ws_syslog "Error: no ping response from IP address"
 [ "$RJ45" = "Y" ] && ws_syslog "  RJ45 - $LANOPERATE"
 [ "$WIFI" = "Y" ] && ws_syslog "  WIFI - $WLANOPERATE"
-[ "$PPP" = "Y" ] && ws_syslog "  USB (PPP) - $USBOPERATE"
+[ "$PPP" = "Y" ] && ws_syslog "  ${PPP_IFACE} (PPP) - $USBOPERATE"

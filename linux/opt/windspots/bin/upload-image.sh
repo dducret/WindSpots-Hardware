@@ -1,11 +1,14 @@
-#!/bin/bash
+#!/bin/sh
 . "$(dirname "$0")/common.sh"  # common windspots scripts
 
 # Expects two parameters: IMAGE_PATH and IMAGE_NAME
 IMAGE_PATH=$1
 IMAGE_NAME=$2
+
+[ -n "$IMAGE_PATH" ] && [ -n "$IMAGE_NAME" ] || exit 1
+[ -f "$IMAGE_PATH" ] || exit 1
+
 IMAGE_SIZE=$(stat -c '%s' "$IMAGE_PATH")
-IMAGE_TEXT_FORMAT="\"$STATION_NAME $(date +'%d/%m/%Y %H:%M')\$WINDTAG - (c) WindSpots.com\""
 PACKETS=1
 TARGET="8.8.8.8"
 
@@ -28,8 +31,7 @@ if [ -n "$(ping -c $PACKETS "$TARGET" 2>/dev/null | awk '/received/ {print $4}')
     [ "$AGE" -ge "$TESTI" ] && rm -f "$WINDSPOTS_WTAG"
   fi
 
-  # Evaluate IMAGE_TEXT with proper variable expansion
-  eval IMAGE_TEXT="$IMAGE_TEXT_FORMAT"
+  IMAGE_TEXT="${STATION_NAME} $(date +'%d/%m/%Y %H:%M')${WINDTAG} - (c) WindSpots.com"
   curl -X POST -s \
     -F "tag=${IMAGE_TEXT}" \
     -F "camrotate=${CAMROTATE}" \

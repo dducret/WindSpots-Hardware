@@ -31,11 +31,6 @@ const char *sensorName(const SensorType sensor) {
 }
 }
 
-const char *sensorName(const SensorType sensor) {
-  return sensor == SensorType::BMP388 ? "bmp388" : "bmp280";
-}
-}
-
 int main(int argc, char *argv[]) {
 	int altitude = 374;
 	SensorType sensor = SensorType::BMP388; // Default sensor
@@ -96,21 +91,14 @@ int main(int argc, char *argv[]) {
     temperature = myBmp.getTemperature();
     altitudeRef = myBmp.getAltitude(1013.25);
   }
-	if (!ok) {
+  if (!ok) {
     printf("getbaro - %s read error", sensorName(sensor));
+    return 1;
   }
 
-  // NOTE:
-  // - bmp280 backend is used for both sensor selections for now.
-  // - bmp388 is kept as the default requested sensor choice.
-  if (!myBmp->update()) {
-    printf("getbaro - %s read error", sensorName(sensor));
-  }
-  loat pressure = myBmp->getPressure();
-  float temperature = myBmp->getTemperature();
-  float sealevel = static_cast<double>(pressure) /
-                   std::pow(1.0 - static_cast<double>(altitude) / 44330.0, 5.255);
-  float altitudeRef = myBmp->getAltitude(1013.25);
+  float sealevel = static_cast<float>(
+      static_cast<double>(pressure) /
+      std::pow(1.0 - static_cast<double>(altitude) / 44330.0, 5.255));
   
   // Output data to screen
   printf("SENSOR=%s\n", sensorName(sensor));
@@ -119,6 +107,5 @@ int main(int argc, char *argv[]) {
   printf("TEMPERATURE=%.1f\n", temperature);
   printf("ALTITUDE1013=%.0f\n", altitudeRef);
   printf("ALTITUDE=%u\n", altitude);
-  delete myBmp;
   return 0;
 }
