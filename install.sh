@@ -213,16 +213,18 @@ else
   die "WARNING: ${CONFIG_TXT} not found; skipping."
 fi
 
-log "Fixing cmdline.txt for bluettoth for RPI 3B"
-TOKEN="console=serial0,115200"
+log "Fixing cmdline.txt for bluetooth for RPI 3B"
+SERIAL_TOKEN="console=serial0,115200"
+TTY_TOKEN="console=tty1"
 backup_if_exists "${CMDLINE_TXT}"
 current="$(tr '\n' ' ' < "${CMDLINE_TXT}" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
-updated="$(printf '%s\n' "$current" | sed -E "s/(^| )${TOKEN}( |$)/ /g; s/[[:space:]]+/ /g; s/^ //; s/ $//")"
+updated="$(printf '%s\n' "$current" | sed -E "s/(^| )(${SERIAL_TOKEN}|${TTY_TOKEN})( |$)/ /g; s/[[:space:]]+/ /g; s/^ //; s/ $//")"
+updated="${SERIAL_TOKEN} ${TTY_TOKEN}${updated:+ ${updated}}"
 if [[ "$current" == "$updated" ]]; then
-  log "    No change needed: $TOKEN not present in ${CMDLINE_TXT}"
+  log "    No change needed: ${CMDLINE_TXT} already contains ${SERIAL_TOKEN} ${TTY_TOKEN}"
 else
   printf '%s\n' "$updated" > "${CMDLINE_TXT}"
-  log "    Removed $TOKEN from ${CMDLINE_TXT}"
+  log "    Ensured ${SERIAL_TOKEN} ${TTY_TOKEN} in ${CMDLINE_TXT}"
 fi
 
 log "Writing sysctl config to disable IPv6 (and keep ip_forward=0)"
