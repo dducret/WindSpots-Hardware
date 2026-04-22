@@ -216,14 +216,14 @@ fi
 log "Fixing cmdline.txt for bluettoth for RPI 3B"
 TOKEN="console=serial0,115200"
 backup_if_exists "${CMDLINE_TXT}"
-current="$(tr '\n' ' ' < "$FILE" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+current="$(tr '\n' ' ' < "${CMDLINE_TXT}" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
 updated="$(printf '%s\n' "$current" | sed -E "s/(^| )${TOKEN}( |$)/ /g; s/[[:space:]]+/ /g; s/^ //; s/ $//")"
 if [[ "$current" == "$updated" ]]; then
-  log "    No change needed: $TOKEN not present in $FILE"
-  exit 0
+  log "    No change needed: $TOKEN not present in ${CMDLINE_TXT}"
+else
+  printf '%s\n' "$updated" > "${CMDLINE_TXT}"
+  log "    Removed $TOKEN from ${CMDLINE_TXT}"
 fi
-printf '%s\n' "$updated" > "$FILE"
-log "    Removed $TOKEN from $FILE"
 
 log "Writing sysctl config to disable IPv6 (and keep ip_forward=0)"
 backup_if_exists "${SYSCTL_FILE}"
