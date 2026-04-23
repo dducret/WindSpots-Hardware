@@ -14,6 +14,35 @@ function read_ipv4($iface) {
     return trim((string) shell_exec('/sbin/ip -4 addr show ' . escapeshellarg($iface) . " 2>/dev/null | awk '/inet / {print \$2}' | cut -d/ -f1 | head -n 1"));
 }
 
+function detect_ppp_iface() {
+    $candidates = array();
+
+    foreach (array('/etc/network/interfaces', __DIR__ . '/../../../../interfaces') as $interfacesFile) {
+        if (!is_readable($interfacesFile)) {
+            continue;
+        }
+
+        $lines = @file($interfacesFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($lines)) {
+            continue;
+        }
+
+        foreach ($lines as $line) {
+            if (preg_match('/^\s*iface\s+(eth1|usb0)\s+/', $line, $matches)) {
+                return $matches[1];
+            }
+        }
+    }
+
+    foreach (array('eth1', 'usb0') as $iface) {
+        if (file_exists('/sys/class/net/' . $iface . '/operstate')) {
+            return $iface;
+        }
+    }
+
+    return 'eth1';
+}
+
 $values = array();
 
 // power values
@@ -62,7 +91,7 @@ $values['LOG'] = htmlspecialchars($output);
 // network
 $lan = read_operstate('eth0');
 $wlan = read_operstate('wlan0');
-$pppIface = file_exists('/sys/class/net/usb0/operstate') ? 'usb0' : 'eth1';
+$pppIface = detect_ppp_iface();
 $ppp = read_operstate($pppIface);
 $lanIP = read_ipv4('eth0');
 $wlanIP = read_ipv4('wlan0');
