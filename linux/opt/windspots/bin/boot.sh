@@ -11,7 +11,6 @@ touch "${TMP}/lastconnection" "${TMP}/lastimage" "${LOG}/windspots.log"
 # Launch configuration and network check in background
 "${WINDSPOTS_BIN}/ws-configure.sh" > /dev/null 2>&1 &
 "${WINDSPOTS_BIN}/check-network.sh" > /dev/null 2>&1 &
-"${WINDSPOTS_BIN}/mesh-check.sh" > /dev/null 2>&1 &
 
 # Disable SysRq
 echo 0 > /proc/sys/kernel/sysrq
@@ -33,6 +32,7 @@ ln -sf /var/log/windspots.log /opt/windspots/log/windspots.log
 chown windspots:windspots /var/log/windspots.log
 chmod 777 /var/log/windspots.log
 chown windspots:windspots /opt/windspots/log -R
+"${WINDSPOTS_BIN}/mesh-check.sh" > /dev/null 2>&1 &
 
 # Adjust rights for update and serial configuration
 chown -R windspots:windspots /tmp /opt/windspots/etc/serial

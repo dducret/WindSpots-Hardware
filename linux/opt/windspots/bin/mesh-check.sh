@@ -28,6 +28,27 @@ log_cmd_output() {
   ws_syslog "[mesh-check] ${label}: exit=${rc}"
 }
 
+log_cmd_summary() {
+  label="$1"
+  shift
+
+  if ! command -v "$1" >/dev/null 2>&1; then
+    ws_syslog "[mesh-check] ${label}: command $1 not available"
+    return 0
+  fi
+
+  output=$("$@" 2>&1 | tr '\n' ';' | sed 's/;*$//')
+  rc=$?
+
+  if [ -n "$output" ]; then
+    ws_syslog "[mesh-check] ${label}: ${output}"
+  else
+    ws_syslog "[mesh-check] ${label}: no output"
+  fi
+
+  ws_syslog "[mesh-check] ${label}: exit=${rc}"
+}
+
 read_first_line() {
   file_path="$1"
   if [ -r "$file_path" ]; then
@@ -41,21 +62,22 @@ log_mesh_file() {
   if [ -f "$file_path" ]; then
     ws_syslog "[mesh-check] file=${file_path} size=$(wc -c < "$file_path" 2>/dev/null)"
     log_cmd_output "sha256 ${file_path}" sha256sum "$file_path"
-    log_cmd_output "head ${file_path}" sed -n '1,20p' "$file_path"
+    if [ "${file_path##*.}" = "msh" ]; then
+      log_cmd_summary "msh flags ${file_path}" grep -E '^(skipmaccheck|MeshID|MeshServer|ServerID|displayName|agentName)=' "$file_path"
+    fi
   fi
 }
 
 ws_syslog "[mesh-check] start station=${STATION} hostname=$(hostname 2>/dev/null) machine_id=$(read_first_line /etc/machine-id) boot_id=$(read_first_line /proc/sys/kernel/random/boot_id)"
 
-log_cmd_output "ip-link" ip -details link
-log_cmd_output "ip-address" ip address
+log_cmd_output "ip-link" ip -o link
+log_cmd_output "ip-address" ip -o address
 log_cmd_output "ip-route" ip route
-log_cmd_output "resolv-conf" sed -n '1,40p' /etc/resolv.conf
 log_cmd_output "network-manager" nmcli --terse --fields NAME,UUID,TYPE,DEVICE connection show
 log_cmd_output "modem-manager" mmcli -L
-log_cmd_output "meshagent-service" systemctl status meshagent --no-pager
-log_cmd_output "meshagent-unit-files" systemctl list-unit-files meshagent.service
-log_cmd_output "meshagent-process" ps -ef
+log_cmd_summary "meshagent-active" systemctl is-active meshagent
+log_cmd_summary "meshagent-enabled" systemctl is-enabled meshagent
+log_cmd_output "meshagent-process" sh -c "ps -ef | grep '[m]eshagent'"
 
 for mesh_file in \
   /usr/local/mesh_services/meshagent/meshagent.msh \

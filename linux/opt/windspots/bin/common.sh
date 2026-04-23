@@ -35,8 +35,12 @@ ws_log_console() {
 
 ws_syslog() {
   local DATE
+  local SYSLOG_FILE
   DATE=$(date +"%Y-%m-%d %H:%M:%S")
-  echo "$DATE $(readlink -f "$0") - $@" >> /opt/windspots/log/sys.log
+  SYSLOG_FILE=/opt/windspots/log/sys.log
+  mkdir -p /opt/windspots/log 2>/dev/null
+  touch "$SYSLOG_FILE" 2>/dev/null
+  echo "$DATE $(readlink -f "$0") - $@" >> "$SYSLOG_FILE"
   echo "$@"
 }
 
