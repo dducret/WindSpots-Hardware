@@ -39,13 +39,13 @@ fi
 # rfkill unblock bluetooth >/dev/null 2>&1
 STATUS=$(bluetoothctl show | grep "Discoverable: yes")
 if [ -z "$STATUS" ]; then
-    ws_log_console "Discoverable is currently NO. Turning it ON..."
-bluetoothctl <<EOF >/dev/null 2>&1
+  ws_log_console "Discoverable is currently NO. Turning it ON..."
+  bluetoothctl >/dev/null 2>&1 <<EOF
 power on
 discoverable on
 pairable on
 default-agent
-EOF >&2
+EOF
 fi
 
 exit 0
