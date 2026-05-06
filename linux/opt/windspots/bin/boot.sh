@@ -42,6 +42,10 @@ chmod 777 /etc/hosts /etc/hostname /etc/issue
 touch /var/tmp/infos
 chmod 777 /var/tmp/infos
 
+# Mesh debug 
+# add in etc/main MESH_DEBUG=Y
+# "${WINDSPOTS_BIN}/mesh-check.sh" > /dev/null 2>&1 &
+
 #  log message
 echo "[ ok ] WindSpots Station started."
 ws_log_console "[ ok ] WindSpots Station started."
