@@ -1,8 +1,9 @@
-<?php 
+<?php
   header('Content-type: application/json');
+  $values = [];
   // image
-  $image = shell_exec("ls /var/tmp/img/");
-  $image = str_replace(array("\n", "\r"), '', $image);
+  $imageFiles = @scandir('/var/tmp/img');
+  $image = is_array($imageFiles) ? implode('', array_diff($imageFiles, array('.', '..'))) : '';
   $values['image'] = $image;
   // weather data
   $newTime = strtotime('-1 minutes');
@@ -27,15 +28,15 @@
     $db->close();
     unset($db);
     $db = null;
-  } catch(PDOException $e) {
-    logIt("Unable to open database connection: ".print_r($e,true));
+  } catch(Exception $e) {
+    error_log("Unable to open database connection: " . $e->getMessage());
   }
   // station date and time
   $date = Date("d-M-Y");
   $values['date'] = $date;
   $time = Date("H:i:s");
   $values['time'] = $time;
-  
+
   //var_dump($values);
-  echo json_encode($values);  
+  echo json_encode($values);
 ?>

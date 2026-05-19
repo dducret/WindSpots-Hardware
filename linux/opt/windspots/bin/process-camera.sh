@@ -34,15 +34,13 @@ fi
 
 if [ -f "$IMAGE_PATH" ]; then
 	touch "${WINDSPOTS_LASTIMAGE}"
-  $WINDSPOTS_BIN/upload-image.sh "${IMAGE_PATH}" $STATION_ID
-  rm $TMP/img/*.jpg
+  "${WINDSPOTS_BIN}/upload-image.sh" "${IMAGE_PATH}" "$STATION_ID"
+  find "${TMP}/img" -maxdepth 1 -type f -name '*.jpg' -delete 2>/dev/null
   timestamp=$(date -d "today" +"%Y%m%d%H%M")
-  cp $TMP/input.jpg $TMP/img/${timestamp}.jpg
+  cp "${TMP}/input.jpg" "${TMP}/img/${timestamp}.jpg"
 else
   ws_log "File ${IMAGE_PATH} not found; camera may be unconnected."
-  FILEDATE=$(stat -c %Y "${WINDSPOTS_LASTIMAGE}")
-  NOW=$(date +"%s")
-  AGE=$((NOW - FILEDATE))
+  AGE=$(ws_file_age_seconds "${WINDSPOTS_LASTIMAGE}" "${IMAGE_TRANSMISSION}")
   ws_log "Image age: ${AGE} seconds (threshold: ${IMAGE_TRANSMISSION})"
   if [ "$AGE" -ge "$IMAGE_TRANSMISSION" ]; then
     ws_log "Reboot due to no image received in ${IMAGE_TRANSMISSION} seconds."

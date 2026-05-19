@@ -29,20 +29,22 @@ service nginx start
 # Prepare PHP log file for web server access
 touch /var/log/windspots.log
 ln -sf /var/log/windspots.log /opt/windspots/log/windspots.log
-chown windspots:windspots /var/log/windspots.log
-chmod 777 /var/log/windspots.log
-chown windspots:windspots /opt/windspots/log -R
+chown windspots:www-data /var/log/windspots.log
+chmod 664 /var/log/windspots.log
+chown -R windspots:www-data /opt/windspots/log
+chmod 775 /opt/windspots/log
 "${WINDSPOTS_BIN}/mesh-check.sh" > /dev/null 2>&1 &
+"${WINDSPOTS_BIN}/mesh-selfheal.sh" > /dev/null 2>&1 &
 
 # Adjust rights for update and serial configuration
 chown -R windspots:windspots /tmp /opt/windspots/etc/serial
-chmod 777 /etc/hosts /etc/hostname /etc/issue
 
 # Create and set permissions for HTML info file
 touch /var/tmp/infos
-chmod 777 /var/tmp/infos
+chown www-data:windspots /var/tmp/infos
+chmod 664 /var/tmp/infos
 
-# Mesh debug 
+# Mesh debug
 # add in etc/main MESH_DEBUG=Y
 # "${WINDSPOTS_BIN}/mesh-check.sh" > /dev/null 2>&1 &
 

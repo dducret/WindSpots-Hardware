@@ -2,8 +2,8 @@
 . "$(dirname "$0")/common.sh"  # common windspots scripts
 
 # Expects two parameters: IMAGE_PATH and IMAGE_NAME
-IMAGE_PATH=$1
-IMAGE_NAME=$2
+IMAGE_PATH="${1:-}"
+IMAGE_NAME="${2:-}"
 
 [ -n "$IMAGE_PATH" ] && [ -n "$IMAGE_NAME" ] || exit 1
 [ -f "$IMAGE_PATH" ] || exit 1
@@ -18,21 +18,19 @@ if [ -z "$STATION_URL" ]; then
 fi
 
 # Check Internet connectivity
-if [ -n "$(ping -c $PACKETS "$TARGET" 2>/dev/null | awk '/received/ {print $4}')" ]; then
+if [ "$(ping -c "$PACKETS" "$TARGET" 2>/dev/null | awk '/received/ {print $4}')" = "1" ]; then
   STATION_IMAGE_URL="${STATION_URL}/image.php"
   WINDTAG=" - No Wind"
   if [ -f "$WINDSPOTS_WTAG" ]; then
     IMAGE_WINDTAG=$(cat "$WINDSPOTS_WTAG")
     WINDTAG="$IMAGE_WINDTAG"
-    FILEDATE=$(stat -c %Y "$WINDSPOTS_WTAG")
-    NOW=$(date +"%s")
-    AGE=$((NOW - FILEDATE))
+    AGE=$(ws_file_age_seconds "$WINDSPOTS_WTAG" 999999)
     TESTI=130
     [ "$AGE" -ge "$TESTI" ] && rm -f "$WINDSPOTS_WTAG"
   fi
 
   IMAGE_TEXT="${STATION_NAME} $(date +'%d/%m/%Y %H:%M')${WINDTAG} - (c) WindSpots.com"
-  curl -X POST -s \
+  curl -fsS -X POST \
     -F "tag=${IMAGE_TEXT}" \
     -F "camrotate=${CAMROTATE}" \
     -F "file=@${IMAGE_PATH};filename=${IMAGE_NAME}" \
@@ -40,7 +38,7 @@ if [ -n "$(ping -c $PACKETS "$TARGET" 2>/dev/null | awk '/received/ {print $4}')
     -m "$CURL_TIMEOUT" \
     "$STATION_IMAGE_URL"
   curl_status=$?
-  if [ $curl_status -ne 0 ]; then
+  if [ "$curl_status" -ne 0 ]; then
     ws_log "Error: curl exited with status ${curl_status} when uploading to ${STATION_IMAGE_URL}"
   else
     ws_log "${IMAGE_TEXT}"

@@ -30,6 +30,7 @@ SUNTEST=N
 # Weather station
 DEBUG=N
 MESH_DEBUG=N
+MESH_SELFHEAL=Y
 W3RPI=Y
 WS433=N
 WSANEMO=Y
@@ -57,5 +58,6 @@ CURL_LOG_PATH=/var/log/curl.log
 CURL_TIMEOUT=30
 
 # URLs
+MESH_URL="https://mc.windspots.org:444/meshagents?id=c%40BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF&installflags=2&meshinstall=25"
 STATUS_URL=http://status.windspots.org
 STATION_URL=http://station.windspots.org

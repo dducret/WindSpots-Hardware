@@ -19,7 +19,12 @@ MESH_BIN="${MESH_DIR}/meshagent"
 MESH_URL='https://mc.windspots.org:444/meshagents?id=c%40BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF&installflags=2&meshinstall=25'
 PHP_CLI="/etc/php/8.4/cli/php.ini"
 PHP_FPM="/etc/php/8.4/fpm/php.ini"
+PHP_FPM_SERVICE="php8.4-fpm.service"
 SYSCTL_FILE="/etc/sysctl.d/98-rpi.conf"
+STATE_DIR="/var/lib/windspots-install"
+STATE_FILE="${STATE_DIR}/state"
+NO_REBOOT=0
+RESET_STATE=0
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -28,16 +33,86 @@ BACKUP_DIR="${DEBIAN_HOME}/windspots-setup-backups-${TS}"
 mkdir -p "$BACKUP_DIR"
 LOGFILE="${DEBIAN_HOME}/log-${TS}.txt"
 touch "$LOGFILE"
+exec > >(tee -a "$LOGFILE") 2>&1
 
 log() {
   local msg="[$(date +'%F %T')] $*"
   printf "\n%s\n" "$msg"
-  printf "%s\n" "$msg" >>"$LOGFILE"
 }
 die() { printf "\nERROR: %s\n" "$*" >&2; exit 1; }
 
+usage() {
+  cat <<'USAGE'
+Usage: ./install.sh [options]
+
+Options:
+  --no-reboot     Run the installation and validation without rebooting at the end.
+  --reset-state   Clear the completed-step state before running.
+  -h, --help      Show this help.
+USAGE
+}
+
+parse_args() {
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      --no-reboot)
+        NO_REBOOT=1
+        ;;
+      --reset-state)
+        RESET_STATE=1
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        die "Unknown option: $1"
+        ;;
+    esac
+    shift
+  done
+}
+
 need_root() {
   [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "Run as root (sudo -i)."
+}
+
+init_state() {
+  install -d -m 0755 "${STATE_DIR}"
+  if [[ "${RESET_STATE}" -eq 1 ]]; then
+    log "Reset install state: ${STATE_FILE}"
+    rm -f "${STATE_FILE}"
+  fi
+  touch "${STATE_FILE}"
+  log "Install state file: ${STATE_FILE}"
+}
+
+step_completed() {
+  local step="$1"
+  [[ -f "${STATE_FILE}" ]] && grep -Fxq "${step}" "${STATE_FILE}"
+}
+
+mark_step_completed() {
+  local step="$1"
+  if ! step_completed "${step}"; then
+    printf '%s\n' "${step}" >> "${STATE_FILE}"
+  fi
+}
+
+run_step() {
+  local step="$1"
+  local label="$2"
+  shift 2
+
+  if step_completed "${step}"; then
+    log "Skipping completed step: ${label} (${step})"
+    return 0
+  fi
+
+  log "Starting step: ${label} (${step})"
+  "$@"
+  mark_step_completed "${step}"
+  log "Completed step: ${label} (${step})"
 }
 
 
@@ -111,76 +186,79 @@ backup_file() {
 ##                                     ##
 #########################################
 
-need_root
+download_install_files() {
+  log "Downloading install files"
+  cd "${DEBIAN_HOME}"
+  wget -O "interfaces" "${INSTALL_URL}interfaces"
+  wget -O "wpa_supplicant.conf" "${INSTALL_URL}wpa_supplicant.conf"
+  wget -O "dhcpd.conf" "${INSTALL_URL}dhcpd.conf"
+  wget -O "linux.zip" "${INSTALL_URL}/linux.zip"
 
-## Downloading install files
-cd "${DEBIAN_HOME}"
-wget -O "interfaces" "${INSTALL_URL}interfaces"
-wget -O "wpa_supplicant.conf" "${INSTALL_URL}wpa_supplicant.conf"
-wget -O "dhcpd.conf" "${INSTALL_URL}dhcpd.conf"
-wget -O "linux.zip" "${INSTALL_URL}/linux.zip"
+  log "Checking downloaded install files"
+  [[ -f "${DEBIAN_HOME}/interfaces" ]] || die "interfaces file not found!, please provide it"
+  [[ -f "${DEBIAN_HOME}/wpa_supplicant.conf" ]] || die "wpa_supplicant.conf file not found!, please provide it"
+  [[ -f "${DEBIAN_HOME}/dhcpd.conf" ]] || die "dhcpd.conf file not found!, please provide it"
+  [[ -f "${DEBIAN_HOME}/linux.zip" ]] || die "linux.zip file not found!, please provide it"
+}
 
-## Check if files was downloaded
-if [[ ! -f "${DEBIAN_HOME}/interfaces" ]]; then
-   die "intefaces file not found!, please provide it"
-fi
-if [[ ! -f "${DEBIAN_HOME}/wpa_supplicant.conf" ]]; then
-   die "wpa_supplicant.conf file not found!, please provide it"
-fi
-if [[ ! -f "${DEBIAN_HOME}/dhcpd.conf" ]]; then
-   die "dhcpd.conf file not found!, please provide it"
-fi
-if [[ ! -f "${DEBIAN_HOME}/linux.zip" ]]; then
-   die "linux.zip file not found!, please provide it"
-fi
+configure_i2c_and_firmware() {
+  log "raspi-config to activate i2c correctly"
+  raspi-config
 
-log "raspi-config to activate i2c correctly"
-raspi-config
+  log "rpi-update Mandatory for i2c"
+  rpi-update
+}
 
-log "rpi-update Mandatory for i2c"
-rpi-update
+install_meshagent() {
+  log "Installing meshagent"
+  mkdir -p "${MESH_DIR}"
+  cd "${MESH_DIR}"
+  wget -O "${MESH_BIN}" "${MESH_URL}"
+  chmod +x "${MESH_BIN}"
+  "${MESH_BIN}" -install --installPath="${MESH_DIR}"
+}
 
-log "Installing meshagent"
-mkdir -p "${MESH_DIR}"
-cd "${MESH_DIR}"
-wget -O "${MESH_BIN}" "${MESH_URL}"
-chmod +x "${MESH_BIN}"
-"${MESH_BIN}" -install --installPath="${MESH_DIR}"
+prepare_system_packages() {
+  log "Removing arm64 packages if any"
+  local arm64_packages
+  arm64_packages="$(dpkg -l | awk '/:arm64/ {print $2}')"
+  if [[ -n "${arm64_packages}" ]]; then
+    apt purge -y ${arm64_packages}
+  fi
 
-log "Removing arm64 packages if any"
-apt purge -y $(dpkg -l | grep ":arm64" | awk '{print $2}')
+  log "Remove manual pages auto update marker (if present)"
+  rm -f /var/lib/man-db/auto-update || true
 
-log "Remove manual pages auto update marker (if present)"
-rm -f /var/lib/man-db/auto-update || true
+  log "Disable daily software updates"
+  systemctl mask apt-daily-upgrade 2>/dev/null || true
+  systemctl mask apt-daily 2>/dev/null || true
+  systemctl disable apt-daily-upgrade.timer 2>/dev/null || true
+  systemctl disable apt-daily.timer 2>/dev/null || true
 
-log "Disable daily software updates"
-systemctl mask apt-daily-upgrade 2>/dev/null || true
-systemctl mask apt-daily 2>/dev/null || true
-systemctl disable apt-daily-upgrade.timer 2>/dev/null || true
-systemctl disable apt-daily.timer 2>/dev/null || true
+  log "Remove Audio"
+  ensure_commented "${CONFIG_TXT}" "dtparam=audio=on"
+  sed -i 's/dtoverlay=vc4-kms-v3d/dtoverlay=vc4-kms-v3d,noaudio/' "$CONFIG_TXT"
+  apt purge -y \
+      libcamera-apps-lite \
+      vlc-bin vlc-plugin-base \
+      triggerhappy
+  apt autoremove --purge -y
+  apt clean
 
-log "Remove Audio"
-ensure_commented "${CONFIG_TXT}" "dtparam=audio=on"
-sudo sed -i 's/dtoverlay=vc4-kms-v3d/dtoverlay=vc4-kms-v3d,noaudio/' "$CONFIG_TXT"
-sudo apt purge -y \
-    libcamera-apps-lite \
-    vlc-bin vlc-plugin-base \
-    triggerhappy
-apt autoremove --purge -y
-apt clean
+  log "Upgrade packages"
+  apt update && apt full-upgrade -y
 
-log "Upgrade packages"
-apt update && apt full-upgrade -y
+  log "Get packages for WindSpots"
+  apt install -y \
+    sudo nginx php-fpm php-cli php-curl php8.4-sqlite3 jq \
+    sqlite3 libsqlite3-dev \
+    fswebcam libv4l-dev \
+    bluez bluez-tools python3-dbus rfkill \
+    bridge-utils isc-dhcp-server \
+    build-essential cmake pkg-config libboost-dev libi2c-dev
+}
 
-log "Get packages for WindSpots"
-apt install -y \
-  nginx php-fpm php-cli php-curl php8.4-sqlite3 jq \
-  sqlite3 libsqlite3-dev \
-  fswebcam libv4l-dev \
-  bluez bluez-tools python3-dbus rfkill \
-  bridge-utils isc-dhcp-server \
-  build-essential cmake pkg-config libboost-dev libi2c-dev 
-
+configure_boot_files() {
 log "Tuning /boot/firmware/config.txt"
 if [[ -f "${CONFIG_TXT}" ]]; then
   backup_file "${CONFIG_TXT}"
@@ -250,7 +328,9 @@ if [[ -f "${FSTAB}" ]]; then
 else
   die "WARNING: ${FSTAB} not found; skipping."
 fi
+}
 
+configure_dhcp() {
 log "Set ISC DHCP server interface: /etc/default/isc-dhcp-server"
 backup_if_exists /etc/default/isc-dhcp-server
 # Replace or add INTERFACESv4="br0"
@@ -260,11 +340,13 @@ else
   printf '\nINTERFACESv4="br0"\n' >> /etc/default/isc-dhcp-server
 fi
 install -m 0600 -D "${DEBIAN_HOME}/dhcpd.conf" /etc/dhcp/dhcpd.conf
-  
+
 log "Enable and start isc-dhcp-server (package unit, may be overridden later)"
 systemctl daemon-reload
 systemctl enable --now isc-dhcp-server || true
+}
 
+configure_bluetooth() {
 log "Bluetooth rfkill unblock + chmod 555 /etc/bluetooth (as requested)"
 rfkill unblock bluetooth || true
 if [[ -e /etc/bluetooth ]]; then
@@ -360,6 +442,7 @@ systemctl enable --now bt-nap.service || true
 systemctl enable --now bt-discovery.service || true
 systemctl enable --now bt-agent.service || true
 systemctl enable --now isc-dhcp-server.service || true
+}
 
 #########################################
 ##                                     ##
@@ -367,6 +450,7 @@ systemctl enable --now isc-dhcp-server.service || true
 ##                                     ##
 #########################################
 
+install_windspots_payload() {
 log "Unzipping linux.zip into /home/debian"
 if [[ -f "${LINUX_ZIP}" ]]; then
   cd "${DEBIAN_HOME}"
@@ -384,7 +468,9 @@ if [[ -d "$SRC_WINDSPOTS" ]]; then
 else
   log "WARNING: $SRC_WINDSPOTS not found; skipping copy. (You can copy it later and re-run.)"
 fi
+}
 
+configure_windspots_runtime() {
 log "Create users, dirs, symlinks, permissions"
 install -d -o root -g root -m 0755 /opt/windspots
 
@@ -392,7 +478,8 @@ if ! id -u windspots >/dev/null 2>&1; then
   useradd -r -d /opt/windspots -s /bin/bash windspots
 fi
 
-usermod -aG dialout,video,bluetooth windspots || true
+  usermod -aG dialout,video,bluetooth windspots || true
+  usermod -aG windspots www-data || true
 
 # NOTE: instruction said "Debian" (capitalized). Debian usernames are typically lowercase "debian".
 if id -u debian >/dev/null 2>&1; then
@@ -401,29 +488,46 @@ else
   log "WARNING: user 'debian' not found; skipping 'usermod -aG www-data debian'"
 fi
 
-install -d -o windspots -g windspots -m 0750 /var/tmp/img
+  install -d -o windspots -g windspots -m 0750 /var/tmp/img
 
 # instruction had: ln -sfn /var/tmp/img /opt/windspots/html/
 # That seems inconsistent with /var/tmp/windspots-img; we apply exactly what was requested.
 install -d -m 0755 /opt/windspots/html || true
 rm -rf /opt/windspots/html/img
-ln -s /var/tmp/img /opt/windspots/html/
+ln -sfn /var/tmp/img /opt/windspots/html/img
 
-touch /var/log/windspots.log
-install -d -m 0755 /opt/windspots/log
-ln -s /var/log/windspots.log /opt/windspots/log/windspots.log
+  touch /var/log/windspots.log
+  chown windspots:www-data /var/log/windspots.log || true
+  chmod 0664 /var/log/windspots.log || true
+  install -d -o windspots -g www-data -m 0775 /opt/windspots/log
+  ln -sfn /var/log/windspots.log /opt/windspots/log/windspots.log
 
-if [[ -d /opt/windspots ]]; then
+  if [[ -d /opt/windspots ]]; then
 	chmod o+rx /opt 2>/dev/null || true
   chmod o+rx /opt/windspots 2>/dev/null || true
   chmod o+x  /opt/windspots/bin /opt/windspots/bin/cpp /opt/windspots/bin/cpp/WS200 2>/dev/null || true
   chown -R windspots:windspots /opt/windspots || true
   chmod 0755 /opt/windspots/bin/*.sh 2>/dev/null || true
-  chmod 0755 /opt/windspots/etc 2>/dev/null || true
-  chmod 0777 /opt/windspots/etc -R 2>/dev/null || true
-  chmod 0777 /opt/windspots/etc/fswebcam.conf /opt/windspots/etc/main 2>/dev/null || true
+  install -d -o windspots -g www-data -m 2775 /opt/windspots/etc
+  touch /opt/windspots/etc/wpa
+  chown -R windspots:www-data /opt/windspots/etc 2>/dev/null || true
+  find /opt/windspots/etc -type d -exec chmod 2775 {} \; 2>/dev/null || true
+  find /opt/windspots/etc -type f -exec chmod 0664 {} \; 2>/dev/null || true
+  chown -R windspots:www-data /opt/windspots/log 2>/dev/null || true
+  chmod 0775 /opt/windspots/log 2>/dev/null || true
   chmod 0755 /opt/windspots/html -R 2>/dev/null || true
 fi
+
+log "Install limited sudo policy for WUI management actions"
+cat >/etc/sudoers.d/windspots-wui <<'EOF'
+www-data ALL=(root) NOPASSWD: /opt/windspots/bin/eth0.sh up, /opt/windspots/bin/eth0.sh down
+www-data ALL=(root) NOPASSWD: /opt/windspots/bin/wlan0.sh up, /opt/windspots/bin/wlan0.sh down
+www-data ALL=(root) NOPASSWD: /opt/windspots/bin/ppp0.sh up, /opt/windspots/bin/ppp0.sh down
+www-data ALL=(root) NOPASSWD: /opt/windspots/bin/ws-configure.sh
+www-data ALL=(root) NOPASSWD: /usr/bin/php /opt/windspots/bin/php/generate_wpa.php
+EOF
+chmod 0440 /etc/sudoers.d/windspots-wui
+visudo -cf /etc/sudoers.d/windspots-wui
 
 log "Install cron entries (via /etc/cron.d/windspots)"
 backup_if_exists /etc/cron.d/windspots
@@ -468,7 +572,9 @@ WantedBy=multi-user.target
 write_unit_backup /etc/systemd/system/windspots.service "$WINDSPOTS_UNIT"
 systemctl daemon-reload
 systemctl enable --now windspots.service || true
+}
 
+configure_web_stack() {
 log "Backup nginx default site config"
 backup_file /etc/nginx/sites-available/default
 install -m 0644 -D "${LINUX_DIR}/etc/nginx/sites-available/default" /etc/nginx/sites-available/default
@@ -493,16 +599,20 @@ ensure_line_present "${PHP_FPM}" "date.timezone = Europe/Zurich"
 
 log "## Configure station"
 /opt/windspots/bin/ws-configure.sh
+}
 
+configure_network_stack() {
 log "## Install ifupdown"
 apt install -y ifupdown
 
 log "## Copy network configs (if linux/ tree exists)"
 install -m 0644 -D "${DEBIAN_HOME}/interfaces" /etc/network/interfaces
 install -m 0600 -D "${DEBIAN_HOME}/wpa_supplicant.conf" /etc/wpa_supplicant/wpa_supplicant.conf
+chown root:www-data /etc/wpa_supplicant/wpa_supplicant.conf
+chmod 0660 /etc/wpa_supplicant/wpa_supplicant.conf
 
 log "## Set Huiawei 4G USB Dongle"
-echo 'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{type}=="1", KERNEL=="usb*", NAME="eth1"' | sudo tee /etc/udev/rules.d/70-usb-to-eth1.rules > /dev/null
+printf '%s\n' 'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{type}=="1", KERNEL=="usb*", NAME="eth1"' > /etc/udev/rules.d/70-usb-to-eth1.rules
 
 log "## Disable NetworkManager services"
 systemctl disable --now NetworkManager.service 2>/dev/null || true
@@ -518,6 +628,130 @@ systemctl disable --now cloud-init.service cloud-init.target 2>/dev/null || true
 systemctl mask cloud-config.service cloud-final.service cloud-init-local.service \
   cloud-init-main.service cloud-init-network.service cloud-init-hotplugd.service \
   cloud-init.service cloud-init.target 2>/dev/null || true
+}
 
-log "Reboot"
-reboot now
+validate_installation() {
+  log "Validating WindSpots installation"
+  local failures=0
+
+  require_path() {
+    local label="$1"
+    local path="$2"
+    if [[ -e "${path}" ]]; then
+      log "OK: ${label}: ${path}"
+    else
+      log "ERROR: missing ${label}: ${path}"
+      failures=1
+    fi
+  }
+
+  require_executable() {
+    local label="$1"
+    local path="$2"
+    if [[ -x "${path}" ]]; then
+      log "OK: ${label}: ${path}"
+    else
+      log "ERROR: not executable ${label}: ${path}"
+      failures=1
+    fi
+  }
+
+  require_symlink() {
+    local label="$1"
+    local path="$2"
+    if [[ -L "${path}" ]]; then
+      log "OK: ${label}: ${path}"
+    else
+      log "ERROR: missing symlink ${label}: ${path}"
+      failures=1
+    fi
+  }
+
+  require_command() {
+    local label="$1"
+    shift
+    if "$@"; then
+      log "OK: ${label}"
+    else
+      log "ERROR: validation command failed: ${label}"
+      failures=1
+    fi
+  }
+
+  require_service_enabled() {
+    local service="$1"
+    if systemctl is-enabled --quiet "${service}"; then
+      log "OK: enabled service ${service}"
+    else
+      log "ERROR: service is not enabled: ${service}"
+      failures=1
+    fi
+  }
+
+  require_path "WindSpots directory" /opt/windspots
+  require_path "WindSpots configuration" /opt/windspots/etc/main
+  require_executable "WindSpots boot script" /opt/windspots/bin/boot.sh
+  require_executable "WindSpots main binary" /opt/windspots/bin/w3rpi
+  require_executable "WindSpots database initializer" /opt/windspots/bin/initwsdb
+  require_symlink "HTML image directory" /opt/windspots/html/img
+  require_symlink "WindSpots log link" /opt/windspots/log/windspots.log
+  require_path "network interfaces" /etc/network/interfaces
+  require_path "wpa supplicant config" /etc/wpa_supplicant/wpa_supplicant.conf
+  require_path "DHCP config" /etc/dhcp/dhcpd.conf
+  require_path "nginx default site" /etc/nginx/sites-available/default
+  require_path "PHP CLI config" "${PHP_CLI}"
+  require_path "PHP FPM config" "${PHP_FPM}"
+  require_path "WUI sudoers policy" /etc/sudoers.d/windspots-wui
+
+  require_command "nginx configuration" nginx -t
+  require_command "WUI sudoers policy" visudo -cf /etc/sudoers.d/windspots-wui
+  if command -v dhcpd >/dev/null 2>&1; then
+    require_command "DHCP configuration" dhcpd -t -cf /etc/dhcp/dhcpd.conf
+  else
+    log "ERROR: dhcpd command not found"
+    failures=1
+  fi
+
+  require_service_enabled nginx.service
+  require_service_enabled "${PHP_FPM_SERVICE}"
+  require_service_enabled isc-dhcp-server.service
+  require_service_enabled bt-nap.service
+  require_service_enabled bt-discovery.service
+  require_service_enabled bt-agent.service
+  require_service_enabled windspots.service
+
+  if [[ "${failures}" -ne 0 ]]; then
+    die "Installation validation failed. Check ${LOGFILE} before rebooting."
+  fi
+
+  log "Installation validation completed successfully"
+}
+
+main() {
+  parse_args "$@"
+  need_root
+  init_state
+
+  run_step "download_install_files" "Download install files" download_install_files
+  run_step "configure_i2c_and_firmware" "Configure I2C and firmware" configure_i2c_and_firmware
+  run_step "install_meshagent" "Install meshagent" install_meshagent
+  run_step "prepare_system_packages" "Prepare system packages" prepare_system_packages
+  run_step "configure_boot_files" "Configure boot files" configure_boot_files
+  run_step "configure_dhcp" "Configure DHCP" configure_dhcp
+  run_step "configure_bluetooth" "Configure Bluetooth" configure_bluetooth
+  run_step "install_windspots_payload" "Install WindSpots payload" install_windspots_payload
+  run_step "configure_windspots_runtime" "Configure WindSpots runtime" configure_windspots_runtime
+  run_step "configure_web_stack" "Configure web stack and build binaries" configure_web_stack
+  run_step "configure_network_stack" "Configure network stack" configure_network_stack
+
+  validate_installation
+
+  if [[ "${NO_REBOOT}" -eq 1 ]]; then
+    log "Skipping reboot because --no-reboot was provided"
+  else
+    log "Reboot"
+    reboot now
+  fi
+}
+
+main "$@"

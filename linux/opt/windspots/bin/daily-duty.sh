@@ -9,7 +9,8 @@ rm -f "${LOG}/windspots.log"
 touch "${TMP}/lastconnection"
 touch "${TMP}/lastimage"
 touch "${LOG}/windspots.log"
-chown www-data:www-data /var/log/windspots.log
+chown windspots:www-data /var/log/windspots.log
+chmod 664 /var/log/windspots.log
 rm -f /var/log/nginx/*
 service nginx restart
 >/var/log/autossh.log
@@ -23,7 +24,7 @@ service nginx restart
 >/var/log/kern.log
 >/var/log/lastlog
 >/var/log/messages
->/var/log/php7.0-fpm.log
+>/var/log/php8.4-fpm.log
 >/var/log/ppp.log
 >/var/log/syslog
 >/var/log/user.log
@@ -33,5 +34,6 @@ rm -f /var/log/*.1
 cd "$TMP" || exit 1
 /bin/gzip -f -9 ws.db
 /usr/bin/touch ws.db
-/bin/chown www-data:www-data ws.db
+/bin/chown www-data:windspots ws.db
+/bin/chmod 664 ws.db
 "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"

@@ -7,11 +7,52 @@ function parse_ini_output($output) {
 }
 
 function read_operstate($iface) {
-    return (string) shell_exec('cat /sys/class/net/' . escapeshellarg($iface) . '/operstate 2>/dev/null');
+    $path = '/sys/class/net/' . basename($iface) . '/operstate';
+    return is_readable($path) ? (string) file_get_contents($path) : '';
+}
+
+function list_images($dir) {
+    $files = @scandir($dir);
+    if (!is_array($files)) {
+        return '';
+    }
+    $visible = array_values(array_filter($files, function ($file) {
+        return $file !== '.' && $file !== '..';
+    }));
+    return implode("\n", $visible);
+}
+
+function tail_file($file, $lines = 9) {
+    if (!is_readable($file)) {
+        return '';
+    }
+    $content = @file($file, FILE_IGNORE_NEW_LINES);
+    if (!is_array($content)) {
+        return '';
+    }
+    return implode("\n", array_slice($content, -$lines));
 }
 
 function read_ipv4($iface) {
-    return trim((string) shell_exec('/sbin/ip -4 addr show ' . escapeshellarg($iface) . " 2>/dev/null | awk '/inet / {print \$2}' | cut -d/ -f1 | head -n 1"));
+    $iface = basename($iface);
+    $addrDir = '/sys/class/net/' . $iface . '/address';
+    if (!file_exists($addrDir) && !file_exists('/sys/class/net/' . $iface)) {
+        return '';
+    }
+
+    $output = (string) shell_exec('/sbin/ip -j -4 addr show dev ' . escapeshellarg($iface) . ' 2>/dev/null');
+    $decoded = json_decode($output, true);
+    if (!is_array($decoded) || !isset($decoded[0]['addr_info']) || !is_array($decoded[0]['addr_info'])) {
+        return '';
+    }
+
+    foreach ($decoded[0]['addr_info'] as $addr) {
+        if (isset($addr['family'], $addr['local']) && $addr['family'] === 'inet') {
+            return (string) $addr['local'];
+        }
+    }
+
+    return '';
 }
 
 function detect_ppp_iface() {
@@ -52,7 +93,7 @@ $values = array_merge($values, $alim);
 // i2c probes
 $i2cdetect = shell_exec('/usr/sbin/i2cdetect -y 1 2>/dev/null');
 foreach (array('40', '41', '43', '48', '77') as $addr) {
-    $pattern = '/\s' . $addr . '(\s|$)/'; 
+    $pattern = '/\s' . $addr . '(\s|$)/';
     $values['I2C' . $addr] = preg_match($pattern, $i2cdetect) ? '1' : '0';
 }
 
@@ -85,7 +126,7 @@ $values['SPEED'] = isset($anemo1['SPEED']) ? $anemo1['SPEED'] : '';
 
 // display log
 $logFile = '/opt/windspots/log/windspots.log';
-$output = shell_exec("tail -n 9 " . escapeshellarg($logFile) . " 2>&1");
+$output = tail_file($logFile, 9);
 $values['LOG'] = htmlspecialchars($output);
 
 // network
@@ -105,7 +146,7 @@ $values['pppIP'] = (strncmp($ppp, 'up', 2) === 0 && isset($hilink['IPADDRESS']) 
 
 // ssid + image
 $values['ssid'] = shell_exec('/usr/sbin/iwgetid -r 2>/dev/null');
-$values['image'] = shell_exec('ls /var/tmp/img/ 2>/dev/null');
+$values['image'] = list_images('/var/tmp/img');
 
 $json = json_encode($values);
 if ($json === false) {

@@ -3,25 +3,38 @@
 server {
         listen 80 default_server;
         listen [::]:80 default_server;
- 
+
          root /opt/windspots/html;
- 
+
         index index.php index.html index.htm index.nginx-debian.html;
- 
+
         server_name _;
- 
+
         location / {
                 try_files $uri $uri/ =404;
         }
- 
-        location ~ \.php$ {
-                include snippets/fastcgi-php.conf;
-                fastcgi_pass unix:/var/run/php/php7.3-fpm.sock;
-        }
- 
-        location /config {
-          # /opt/windspots/html/config;
+
+        location ~ ^/config/.*\.php$ {
+          allow 10.10.10.0/24;
+          allow 127.0.0.1;
+          deny all;
           auth_basic "Restricted";
           auth_basic_user_file /opt/windspots/etc/.htpasswd;
+          include snippets/fastcgi-php.conf;
+          fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+        }
+
+        location /config {
+          # /opt/windspots/html/config;
+          allow 10.10.10.0/24;
+          allow 127.0.0.1;
+          deny all;
+          auth_basic "Restricted";
+          auth_basic_user_file /opt/windspots/etc/.htpasswd;
+        }
+
+        location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
         }
 }

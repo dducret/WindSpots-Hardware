@@ -87,39 +87,10 @@ refresh_dns_config() {
     return 1
 }
 
-get_ppp_iface() {
-    local iface
-    local interfaces_file
-
-    for interfaces_file in /etc/network/interfaces "$(dirname "$0")/../../../../interfaces"; do
-        if [ -f "$interfaces_file" ]; then
-            iface=$(awk '
-                $1 == "iface" && ($2 == "eth1" || $2 == "usb0") {
-                    print $2
-                    exit
-                }
-            ' "$interfaces_file")
-            if [ -n "$iface" ]; then
-                echo "$iface"
-                return
-            fi
-        fi
-    done
-
-    for iface in eth1 usb0; do
-        if [ -d "/sys/class/net/${iface}" ]; then
-            echo "$iface"
-            return
-        fi
-    done
-
-    echo "eth1"
-}
-
 # Check interface operstates
 LANOPERATE=$(get_operstate eth0)
 WLANOPERATE=$(get_operstate wlan0)
-PPP_IFACE=$(get_ppp_iface)
+PPP_IFACE=$(ws_get_ppp_iface)
 USBOPERATE=$(get_operstate "$PPP_IFACE")
 
 # Display state info for logging purposes

@@ -12,7 +12,7 @@
 
 <body>
 <?php
-  $version = trim((string) shell_exec('cat /opt/windspots/etc/version'));
+  $version = trim((string) @file_get_contents('/opt/windspots/etc/version'));
   $windspots_ini = parse_ini_file('/opt/windspots/etc/main') ?: [];
   $station = $windspots_ini['STATION'] ?? '';
   $stationName = $windspots_ini['STATION_NAME'] ?? '';
@@ -69,7 +69,7 @@
       <div class="kv"><span>Pressure:</span><span id="nmMb"></span></div>
     </div>
   </section>
-  
+
   <footer class="row  footer-row">
 		<div class="col col-6 style='float:left'">
 	    <span>Copyright &copy; Windspots 2026</span>
@@ -156,7 +156,7 @@
     }
     };
 
-  ui.title.textContent = `WS: ${app.stationValue}`;
+  ui.title.textContent = `WS: ${app.station}`;
   setText(ui.stationName, app.stationName);
   setText(ui.station, app.station);
   setText(ui.windDirection, '0°');

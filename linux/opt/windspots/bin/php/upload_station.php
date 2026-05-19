@@ -66,6 +66,11 @@ $headers = [
     "User-Agent: Mozilla/5.0"
 ];
 $ch = curl_init($registerURL);
+if ($ch === false) {
+    logIt("Unable to initialize cURL for $registerURL");
+    exit(1);
+}
+
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -73,9 +78,9 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 curl_setopt($ch, CURLOPT_TIMEOUT, CURL_TIMEOUT);
 $result = curl_exec($ch);
-if (curl_errno($ch)) {
+if ($result === false || curl_errno($ch)) {
     logIt("cURL error: " . curl_error($ch));
-    logIt("Response: " . $result);
+    logIt("Response: " . (is_string($result) ? $result : ''));
 } elseif (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 200) {
     logIt("HTTP response code for $registerURL: " . curl_getinfo($ch, CURLINFO_HTTP_CODE));
 } else {

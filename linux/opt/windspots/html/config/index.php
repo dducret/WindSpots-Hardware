@@ -35,9 +35,9 @@
             <div class="row">
                 <div class="col-md-12 textCenter">
                   <div class="gridContainer">
-                    <span>Version: <span id="version"></span></span>  
-                    <span>&nbsp</span>  
-                    <span><input style="width:auto; background:#8a3030;" id="stationReboot" type="submit" value="Reboot" onclick="return doReboot()" ></span> 
+                    <span>Version: <span id="version"></span></span>
+                    <span>&nbsp</span>
+                    <span><input style="width:auto; background:#8a3030;" id="stationReboot" type="submit" value="Reboot" onclick="return doReboot()" ></span>
                   </div>
                 </div>
             </div>
@@ -70,7 +70,7 @@
                   </div>
                 </div>
 
-                
+
                 <div class="row">
                   <label id="rj45" class="col-xs-4 textRight">RJ45: </label>
                   <div class="col-xs-2">
@@ -141,7 +141,7 @@
                       <div class="slider round"></div>
                     </label>
                   </div>
-                          
+
                   <label class="col-xs-3 textRight">Temperature: </label>
                   <div class="col-xs-3">
                     <label class="switch">
@@ -169,8 +169,8 @@
                   </div>
                 </div>
 
-              </div>              
-              
+              </div>
+
 
                 <!-- infos -->
             <div class="col-md-6">
@@ -253,14 +253,14 @@
                         <span class="grid hgrid hgrid2"></span>
                         <span class="grid hgrid hgrid3"></span>
                       </div>
-                    </div>               
+                    </div>
               </div>
               <div class="col-md-12">
                 <div class="row">
                   <input id="cameraRotationValue" onmouseup="showGrid('hide')" onmousedown="showGrid('show')" oninput="imgRotate(this.value)" type="range" min="-10" max="10">
                 </div>
               </div>
-              
+
               <div class="col-md-6">
                 <div class="row">
                   <label class="col-xs-4 textRight">Camera Rotate: </label>
@@ -274,7 +274,7 @@
                   </div>
                 </div>
               </div>
-              
+
               <div id="modalProvider" tabindex="-1" >
                 <div class="modalFade"></div>
                 <div id="providerBox" >
@@ -326,7 +326,7 @@
                 </div>
               </div>
 
-                
+
         </div>
     </main>
 
@@ -340,7 +340,7 @@
     <script type="text/javascript">
     // Les variables
 <?php
-    $version = shell_exec("cat /opt/windspots/etc/version");
+    $version = @file_get_contents('/opt/windspots/etc/version');
     $windspots_ini = parse_ini_file("/opt/windspots/etc/main");
     $fswebcam_config = @file_get_contents('/opt/windspots/etc/fswebcam.conf');
     $camAdjustValue = '0';
@@ -365,7 +365,7 @@
     var pppProvider="";
     var camRotateValue="<?php echo $windspots_ini['CAMROTATE'];?>";
     var camAdjustValue="<?php echo $camAdjustValue; ?>";
-    
+
     var ssidValue="";
     var connexionStat=true;
     var batteryVolt=0;
@@ -379,14 +379,14 @@
 
     document.getElementById('modalLoader').style.display="none";
     if(solarValue==false) switchSolar(false);
-    
+
     function doRefresh() {
       var xmlhttp = new XMLHttpRequest();
       xmlhttp.onreadystatechange = function() {
           if (this.readyState == 4 && this.status == 200) {
             var alim = JSON.parse(this.responseText);
             console.log(alim);
-            document.getElementById('batteryVolt').innerHTML=alim.BATTERYVOLTAGE+' V'; 
+            document.getElementById('batteryVolt').innerHTML=alim.BATTERYVOLTAGE+' V';
             document.getElementById('batteryMhz').innerHTML=Math.round(alim.BATTERYPOWER)+' mW';
             document.getElementById('solarVolt').innerHTML=alim.SOLARVOLTAGE+' V';
             document.getElementById('solarMhz').innerHTML=Math.round(alim.SOLARPOWER)+' mW';
@@ -401,33 +401,33 @@
             var i2c=document.getElementById('i2c40');
             var i2cValue = alim.I2C40;
             if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            i2c=document.getElementById('i2c41'); 
+            i2c=document.getElementById('i2c41');
             i2cValue = alim.I2C41;
             if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            i2c=document.getElementById('i2c43'); 
+            i2c=document.getElementById('i2c43');
             i2cValue = alim.I2C43;
             if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            i2c=document.getElementById('i2c48'); 
+            i2c=document.getElementById('i2c48');
             i2cValue = alim.I2C48;
             if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            i2c=document.getElementById('i2c77'); 
+            i2c=document.getElementById('i2c77');
             i2cValue = alim.I2C77;
             if(i2cValue==true){ i2c.style.color="#1AB188"; i2c.style.borderColor="#1AB188"; } else { i2c.style.color="#8A3030"; i2c.style.borderColor="#8A3030"; }
-            var netlab=document.getElementById('rj45'); 
+            var netlab=document.getElementById('rj45');
             var network = alim.lan;
             if(network==true) { netlab.style.color="#1AB188"; } else { netlab.style.color="#8A3030";}
             document.getElementById('rj45IP').innerHTML=alim.lanIP;
-            netlab=document.getElementById('wifi'); 
+            netlab=document.getElementById('wifi');
             network = alim.wlan;
             if(network==true) { netlab.style.color="#1AB188"; } else { netlab.style.color="#8A3030";}
             document.getElementById('wifiIP').innerHTML=alim.wlanIP;
-            netlab=document.getElementById('ppp'); 
+            netlab=document.getElementById('ppp');
             network = alim.ppp;
             if(network==true) { netlab.style.color="#1AB188"; } else { netlab.style.color="#8A3030";}
             document.getElementById('pppIP').innerHTML=alim.IPADDRESS;
             document.getElementById('ssidValue').value=alim.ssid;
               // hilink
-            document.getElementById('pppProviderValue').innerHTML=alim.FULLNAME;  
+            document.getElementById('pppProviderValue').innerHTML=alim.FULLNAME;
             document.getElementById('pppWorkMode').innerHTML=alim.WORKMODE;
             //  good four-bars
             document.getElementById('pppSignal').classList.remove('good');
@@ -468,8 +468,8 @@
       xmlhttp.send();
     }
 
-    function setValue(){ 
-        // reset tous les champs 
+    function setValue(){
+        // reset tous les champs
         for(i=0;i<document.getElementsByTagName('input').length;i++){
           field=document.getElementsByTagName('input')[i];
           fieldType=field.getAttribute('type');
@@ -481,7 +481,7 @@
             field.value=0;
           }
         }
-        
+
         document.getElementsByTagName('title')[0].innerHTML=stationValue+' MWS: '+version;
         document.getElementById('version').innerHTML=version;
         document.getElementById('stationValue').value=stationValue;
@@ -499,8 +499,8 @@
         // document.getElementById('pppProviderValue').value=pppProvider;
         document.getElementById('camAdjustValue').value=camAdjustValue;
         document.getElementById('camRotateValue').innerHTML=camRotateValue;
-        
-        doRefresh(); 
+
+        doRefresh();
     }
 
     function imgRotate(cameraRotationValue){
@@ -510,7 +510,7 @@
       img.style.transform='rotate('+cameraRotationValue+'deg)';
       showRotateValue.innerHTML=cameraRotationValue+"�";
     }
-    
+
     function showGrid(stat){
       var showRotateValue=document.getElementById('showRotateValue');
       grid=document.getElementsByClassName("grid");
@@ -519,15 +519,15 @@
         document.getElementById('imgContainer').style.outline="2px solid rgba(255,255,255,0.8)";
         for(i=0;i<grid.length;i++){
           grid[i].style.display="block";
-        } 
+        }
       }else{
         for(i=0;i<grid.length;i++){
           document.getElementById('imgContainer').style.outline="none";
           grid[i].style.display="none";
-        } 
+        }
       }
     }
-    
+
     function showWifiModal(stat){
       if(stat=='show'){
         document.getElementById('ssid').value="";
@@ -541,7 +541,7 @@
        var currentTime = new Date().getTime();
        while (currentTime + miliseconds >= new Date().getTime()) { }
     }
-    
+
     function doUpdate(){
       var station =document.getElementById('stationValue').value;
       var station_name = document.getElementById('nameValue').value;
@@ -572,7 +572,7 @@
         ppp = "Y";
       var ssidValue = document.getElementById('ssidValue').value;
       var pppProvider =document.getElementById('pppProviderValue').value;
-      
+
       var data = new FormData();
       data.append('station', station);
       data.append('station_name', station_name);
@@ -589,14 +589,14 @@
       data.append('ppp', ppp);
       data.append('pppProvider', pppProvider);
       data.append('ssid', ssidValue);
-      
+
       var xhr = new XMLHttpRequest();
       xhr.open('POST', 'update.php', true);
       xhr.onload = function () {
           // do something to response
           console.log(this.responseText);
       };
-      xhr.send(data);  
+      xhr.send(data);
       // console.log("doUpdate() send");
       var solarNewValue= document.getElementById('solarValue').checked;
       switchSolar(solarNewValue);
@@ -607,30 +607,30 @@
       camRotateValue = parseInt(camRotateValue,10) + parseInt(cam_rotate,10);
       document.getElementById('camRotateValue').innerHTML=camRotateValue;
     }
-    
+
     function doWifi(){
       document.getElementById('modalProvider').style.display="none";
       var ssid = document.getElementById('ssid').value;
       var wpa  = document.getElementById('wpa').value;
-      
+
       var data = new FormData();
       data.append('ssid', ssid);
       data.append('wpa', wpa);
       console.log("ssid:"+ssid+", wpa:"+wpa);
-      
+
       var xhr = new XMLHttpRequest();
       xhr.open('POST', 'wifiwpa.php', true);
       xhr.onload = function () {
           // do something to response
           console.log(this.responseText);
       };
-      xhr.send(data);  
+      xhr.send(data);
       // console.log("updated.") ;
       // Display loader
       window.setTimeout(function() { document.getElementById('modalLoader').style.display="none"; }, 1000);
       document.getElementById('modalLoader').style.display="block";
     }
-    
+
     function switchSolar(bSolar) {
       if(bSolar) {
         document.getElementById('i2c40').style.display="inline-block";
@@ -648,21 +648,21 @@
         document.getElementById('stationRow').style.display="none";
       }
     }
-    
+
     function doReboot() {
       var data = new FormData();
       var currentDate = new Date();
       data.append('reboot', currentDate);
       console.log("reboot:"+currentDate);
-      
+
       var xhr = new XMLHttpRequest();
       xhr.open('POST', 'reboot.php', true);
       xhr.onload = function () {
           // do something to response
           console.log(this.responseText);
       };
-      xhr.send(data);  
-      
+      xhr.send(data);
+
       // Display loader
       window.setTimeout(function() { document.getElementById('modalLoader').style.display="none"; }, 60000);
       document.getElementById('modalLoader').style.display="block";

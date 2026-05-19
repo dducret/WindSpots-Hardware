@@ -61,9 +61,42 @@ Lancer l'installation :
 ./install.sh
 ```
 
+## Commandes utiles
+
+L'installation conserve un etat de reprise dans `/var/lib/windspots-install/state`.
+
+Pour lancer l'installation sans redemarrer automatiquement a la fin :
+
+```sh
+./install.sh --no-reboot
+```
+
+Pour relancer toutes les etapes depuis le debut, sans redemarrer automatiquement :
+
+```sh
+./install.sh --reset-state --no-reboot
+```
+
+Pour relancer toutes les etapes depuis le debut et redemarrer automatiquement si la validation finale reussit :
+
+```sh
+./install.sh --reset-state
+```
+
+Pour consulter l'etat des etapes deja terminees :
+
+```sh
+cat /var/lib/windspots-install/state
+```
+
+Chaque execution ecrit aussi un fichier de log dans le repertoire de l'utilisateur `debian`, avec un nom du type :
+
+```sh
+/home/debian/log-YYYYMMDD-HHMMSS.txt
+```
+
 ## Critere de succes
 
 L'installation doit se derouler jusqu'a la fin sans erreur.
 
 Si une commande echoue, conserver le message d'erreur complet avant de relancer l'installation ou de modifier la configuration.
-

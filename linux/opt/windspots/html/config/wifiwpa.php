@@ -1,18 +1,51 @@
 <?php
-  // var_dump($_POST);
-  $ssid ="TEST";
-  $wpa = "TEST1234";
-  if(isset($_POST['ssid'])) $ssid = $_POST['ssid'];
-  else {
-        echo "No SSID provided";
-        return;
+  header('Content-Type: application/json; charset=utf-8');
+
+  $ssid = isset($_POST['ssid']) ? trim((string) $_POST['ssid']) : '';
+  $wpa = isset($_POST['wpa']) ? (string) $_POST['wpa'] : '';
+
+  if ($ssid === '') {
+    http_response_code(400);
+    echo json_encode(array('success' => false, 'message' => 'No SSID provided'));
+    return;
   }
-  if(isset($_POST['wpa'])) $wpa = $_POST['wpa'];
-  else {
-        echo " No WPA provided";
-        return;
+
+  if ($wpa === '') {
+    http_response_code(400);
+    echo json_encode(array('success' => false, 'message' => 'No WPA provided'));
+    return;
   }
-  $wpa_line = "echo -n '".$ssid.";".$wpa."' >> /opt/windspots/etc/wpa";
-  $wpa_result = shell_exec($wpa_line);
-  shell_exec("php /opt/windspots/bin/php/generate_wpa.php");
+
+  if (strpos($ssid, ';') !== false || strpos($wpa, ';') !== false) {
+    http_response_code(400);
+    echo json_encode(array('success' => false, 'message' => 'SSID and WPA must not contain semicolons'));
+    return;
+  }
+
+  if (preg_match('/[\r\n\0]/', $ssid) || preg_match('/[\r\n\0]/', $wpa)) {
+    http_response_code(400);
+    echo json_encode(array('success' => false, 'message' => 'SSID and WPA must be single-line values'));
+    return;
+  }
+
+  $wpaSourceFile = '/opt/windspots/etc/wpa';
+  $line = $ssid . ';' . $wpa . PHP_EOL;
+
+  if (file_put_contents($wpaSourceFile, $line, FILE_APPEND | LOCK_EX) === false) {
+    http_response_code(500);
+    echo json_encode(array('success' => false, 'message' => 'Unable to update WPA source file'));
+    return;
+  }
+
+  $output = array();
+  $exitCode = 0;
+  exec('/usr/bin/sudo /usr/bin/php /opt/windspots/bin/php/generate_wpa.php 2>&1', $output, $exitCode);
+
+  if ($exitCode !== 0) {
+    http_response_code(500);
+    echo json_encode(array('success' => false, 'message' => 'Unable to generate WPA configuration', 'details' => $output));
+    return;
+  }
+
+  echo json_encode(array('success' => true, 'message' => 'WPA configuration updated successfully'));
 ?>

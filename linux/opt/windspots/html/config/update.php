@@ -16,6 +16,16 @@
     return true;
   }
 
+  function backupFile($source, &$errors, &$messages) {
+    $backup = $source . '_' . date('Ymd-His') . '.bak';
+    if (!copy($source, $backup)) {
+      $errors[] = "Failed to create backup: " . $backup;
+      return false;
+    }
+    $messages[] = "Backup created.";
+    return true;
+  }
+
   function shellEncodeValue($value) {
     if ($value === null) {
       $value = '';
@@ -71,6 +81,7 @@
   $dir_adj = isset($windspots_ini['DIRADJ']) ? $windspots_ini['DIRADJ'] : '';
   $cam_rotate = isset($windspots_ini['CAMROTATE']) ? intval($windspots_ini['CAMROTATE'],10) : 0;
   $cam_adj = '0';
+  $new_cam_adj = null;
   $fswebcam_content = @file_get_contents($fswebcam_file);
   if ($fswebcam_content !== false && preg_match('/^crop\\s+\\d+x\\d+,0x(\\d+)/m', $fswebcam_content, $matches)) {
     $cam_adj = $matches[1];
@@ -107,6 +118,8 @@
   if ($content === false) {
     $errors[] = "Unable to read configuration file: " . $main_file;
   } else {
+    backupFile($main_file, $errors, $messages);
+
     $updates = array();
     if(isset($_POST['station']))
       $updates['STATION'] = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $_POST['station']);
@@ -144,8 +157,10 @@
     $errors[] = "Unable to read camera configuration file: " . $fswebcam_file;
   } else {
     $content = $fswebcam_content;
-    if(isset($_POST['cam_adj']))
-      $content = str_replace("crop 2304x648,0x".$cam_adj, "crop 2304x648,0x".$_POST['cam_adj'], $content);
+    if(isset($_POST['cam_adj'])) {
+      $new_cam_adj = max(0, intval($_POST['cam_adj'], 10));
+      $content = str_replace("crop 2304x648,0x".$cam_adj, "crop 2304x648,0x".$new_cam_adj, $content);
+    }
 
     if (@file_put_contents($fswebcam_file, $content) === false) {
       $errors[] = "Unable to write camera configuration file: " . $fswebcam_file;
@@ -158,19 +173,16 @@
   $newWifi = isset($_POST['wifi']) ? $_POST['wifi'] : $wifi;
   $newPpp = isset($_POST['ppp']) ? $_POST['ppp'] : $ppp;
 
-  $ethCmd = strncmp($newRj45,"Y",1) == 0 ? "/opt/windspots/bin/eth0.sh up" : "/opt/windspots/bin/eth0.sh down";
+  $ethCmd = strncmp($newRj45,"Y",1) == 0 ? "/usr/bin/sudo /opt/windspots/bin/eth0.sh up" : "/usr/bin/sudo /opt/windspots/bin/eth0.sh down";
   runCommand($ethCmd, $errors, $messages, "RJ45 network updated.", "Failed to execute network command: " . $ethCmd);
 
-  $wifiCmd = strncmp($newWifi,"Y",1) == 0 ? "/opt/windspots/bin/wlan0.sh up" : "/opt/windspots/bin/wlan0.sh down";
+  $wifiCmd = strncmp($newWifi,"Y",1) == 0 ? "/usr/bin/sudo /opt/windspots/bin/wlan0.sh up" : "/usr/bin/sudo /opt/windspots/bin/wlan0.sh down";
   runCommand($wifiCmd, $errors, $messages, "WiFi network updated.", "Failed to execute network command: " . $wifiCmd);
 
-  $pppCmd = strncmp($newPpp,"Y",1) == 0 ? "/opt/windspots/bin/ppp0.sh up" : "/opt/windspots/bin/ppp0.sh down";
+  $pppCmd = strncmp($newPpp,"Y",1) == 0 ? "/usr/bin/sudo /opt/windspots/bin/ppp0.sh up" : "/usr/bin/sudo /opt/windspots/bin/ppp0.sh down";
   runCommand($pppCmd, $errors, $messages, "PPP network updated.", "Failed to execute network command: " . $pppCmd);
 
-  $backupCmd = "cp /opt/windspots/etc/main /opt/windspots/etc/main_".date('Ymd-His').".bak";
-  runCommand($backupCmd, $errors, $messages, "Backup created.", "Failed to create backup.");
-
-  $configureCmd = "/opt/windspots/bin/ws-configure.sh";
+  $configureCmd = "/usr/bin/sudo /opt/windspots/bin/ws-configure.sh";
   runCommand($configureCmd, $errors, $messages, "Configuration script executed.", "Failed to run configure script.");
 
   if (count($errors) > 0) {

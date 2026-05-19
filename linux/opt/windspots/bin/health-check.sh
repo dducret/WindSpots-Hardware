@@ -24,9 +24,8 @@ if [ "$W3RPI" = "Y" ]; then
 fi
 
 # Test last data transmission timing
-FILEDATE=$(stat -c %Y "${WINDSPOTS_LASTTRANSMISSION}")
-NOW=$(date +"%s")
-AGE=$((NOW - FILEDATE))
+FILEDATE=$(ws_file_mtime "${WINDSPOTS_LASTTRANSMISSION}")
+AGE=$(ws_file_age_seconds "${WINDSPOTS_LASTTRANSMISSION}" "${DATA_TRANSMISSION}")
 if [ "$AGE" -ge "$DATA_TRANSMISSION" ]; then
   ws_log "Transmission test: FILEDATE=${FILEDATE} AGE=${AGE} (threshold: ${DATA_TRANSMISSION})"
   killall upload-data.sh 2>/dev/null

@@ -54,6 +54,11 @@ function sendToEndpoint($url, $data) {
         "User-Agent: Mozilla/5.0"
     ];
     $ch = curl_init($url);
+    if ($ch === false) {
+        logIt("Unable to initialize cURL for $url");
+        return false;
+    }
+
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -62,9 +67,9 @@ function sendToEndpoint($url, $data) {
     curl_setopt($ch, CURLOPT_TIMEOUT, CURL_TIMEOUT);
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    if (curl_errno($ch)) {
+    if ($result === false || curl_errno($ch)) {
         logIt("cURL error for $url: " . curl_error($ch));
-        logIt("Response: " . $result);
+        logIt("Response: " . (is_string($result) ? $result : ''));
     } elseif ($httpCode !== 200) {
         logIt("HTTP response code for $url: $httpCode");
     } else {
@@ -78,6 +83,7 @@ function sendToEndpoint($url, $data) {
 // Determine time range for data collection.
 $newTime    = strtotime('-1 minutes');
 $lastUpload = date("Y-m-d H:i:s", $newTime);
+$SQLnow = date("Y-m-d H:i:s");
 $current_date = date("YmdHis");
 
 // Status variables initialization.
@@ -95,7 +101,6 @@ if (!file_exists($dbPath)) {
     try {
         $db = new SQLite3($dbPath);
         $db->busyTimeout(DB_BUSY_TIMEOUT_MS);
-        $SQLnow = date("Y-m-d H:i:s");
         $stmt = $db->prepare(
             "SELECT last_update, name, battery, temperature, barometer, wind_direction, wind_speed, wind_speed_average
              FROM data
@@ -105,7 +110,11 @@ if (!file_exists($dbPath)) {
         );
         $stmt->bindValue(':last_update', $lastUpload);
         $stmt->bindValue(':SQLnow', $SQLnow);
-        $result = $stmt->execute();
+        $result = $stmt ? $stmt->execute() : false;
+        if (!$result) {
+            throw new RuntimeException('Unable to query recent weather data.');
+        }
+
         while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
             $nbrec++;
             if ($row['wind_speed'] > MAX_WIND_SPEED || $row['wind_speed_average'] > MAX_WIND_SPEED) {
@@ -135,7 +144,7 @@ if (!file_exists($dbPath)) {
                 $dirIndex = round($dir / 22.5) % 16;
                 $dirAlpha = $compass[$dirIndex];
                 $windTagMessage = " - " . $dirAlpha . " " . round((($speed * 3.6) / 1.852), 0) . " knots (" . round(($speed * 3.6), 0) . " km/h) ";
-                file_put_contents($windTagFile, $windTagMessage);
+                file_put_contents($windTagFile, $windTagMessage, LOCK_EX);
             }
             if (!empty($row['temperature'])) {
                 $status_temperature = $row['temperature'];
@@ -155,8 +164,8 @@ if (!file_exists($dbPath)) {
 }
 
 if ($nbrec < 1) {
-	try {
-    $db = new SQLite3($windspotsTmp.'/ws.db');
+  try {
+    $db = new SQLite3($dbPath);
     $db->busyTimeout(DB_BUSY_TIMEOUT_MS);
     $lastRowResult = $db->query("SELECT last_update FROM data ORDER BY last_update DESC LIMIT 1");
     $lastRow = $lastRowResult ? $lastRowResult->fetchArray(SQLITE3_ASSOC) : null;

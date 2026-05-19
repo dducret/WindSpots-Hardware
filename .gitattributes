@@ -1,0 +1,9 @@
+*.sh text eol=lf
+install.sh text eol=lf
+linux/** text eol=lf
+*.php text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.jpg binary
+*.pdf binary
+*.xlsx binary

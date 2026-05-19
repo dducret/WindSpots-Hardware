@@ -57,27 +57,44 @@ read_first_line() {
   fi
 }
 
+log_mesh_dir() {
+  dir_path="$1"
+  if [ -d "$dir_path" ]; then
+    log_cmd_summary "mesh dir stat ${dir_path}" stat -c 'mode=%a owner=%U group=%G size=%s mtime=%y' "$dir_path"
+  else
+    ws_syslog "[mesh-check] dir missing=${dir_path}"
+  fi
+}
+
 log_mesh_file() {
   file_path="$1"
   if [ -f "$file_path" ]; then
-    ws_syslog "[mesh-check] file=${file_path} size=$(wc -c < "$file_path" 2>/dev/null)"
+    log_cmd_summary "file stat ${file_path}" stat -c 'size=%s owner=%U group=%G mode=%a mtime=%y ctime=%z' "$file_path"
     log_cmd_output "sha256 ${file_path}" sha256sum "$file_path"
     if [ "${file_path##*.}" = "msh" ]; then
       log_cmd_summary "msh flags ${file_path}" grep -E '^(skipmaccheck|MeshID|MeshServer|ServerID|displayName|agentName)=' "$file_path"
     fi
+  else
+    ws_syslog "[mesh-check] file missing=${file_path}"
   fi
 }
 
 ws_syslog "[mesh-check] start station=${STATION} hostname=$(hostname 2>/dev/null) machine_id=$(read_first_line /etc/machine-id) boot_id=$(read_first_line /proc/sys/kernel/random/boot_id)"
 
-log_cmd_output "ip-link" ip -o link
-log_cmd_output "ip-address" ip -o address
-log_cmd_output "ip-route" ip route
-log_cmd_output "network-manager" nmcli --terse --fields NAME,UUID,TYPE,DEVICE connection show
-log_cmd_output "modem-manager" mmcli -L
+log_cmd_output "ip-link-active" sh -c "ip -o link | grep 'state UP'"
+log_cmd_output "ip-address-global" sh -c "ip -o address show scope global"
+log_cmd_output "ip-route-default" sh -c "ip route | grep '^default'"
 log_cmd_summary "meshagent-active" systemctl is-active meshagent
 log_cmd_summary "meshagent-enabled" systemctl is-enabled meshagent
-log_cmd_output "meshagent-process" sh -c "ps -ef | grep '[m]eshagent'"
+log_cmd_summary "meshagent-process" sh -c "ps -ef | grep '[m]eshagent' | tr -s ' '"
+
+for mesh_dir in \
+  /usr/local/mesh_services/meshagent \
+  /opt/meshagent \
+  /usr/local/meshagent
+do
+  log_mesh_dir "$mesh_dir"
+done
 
 for mesh_file in \
   /usr/local/mesh_services/meshagent/meshagent.msh \

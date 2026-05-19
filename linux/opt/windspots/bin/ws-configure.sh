@@ -11,7 +11,8 @@ echo "$SERIAL" > /opt/windspots/etc/serial
 cd "$TMP" || exit 1
 /bin/gzip -f -9 ws.db
 /usr/bin/touch ws.db
-/bin/chmod 777 ws.db
+/bin/chown www-data:windspots ws.db
+/bin/chmod 664 ws.db
 "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"
 # setup welcome message
 /bin/echo '127.0.0.1 localhost' > /etc/hosts
