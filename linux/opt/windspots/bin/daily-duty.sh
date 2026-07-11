@@ -34,6 +34,7 @@ rm -f /var/log/*.1
 /usr/bin/killall w3rpi 2>/dev/null
 /bin/sleep 1
 /usr/bin/install -d -m 1777 "$TMP"
+/bin/chmod 1777 "$TMP"
 cd "$TMP" || exit 1
 /bin/gzip -f -9 ws.db
 /bin/rm -f ws.db-journal ws.db-wal ws.db-shm

@@ -7,6 +7,7 @@ sleep 1
 
 if [ "$W3RPI" = "Y" ]; then
   /usr/bin/install -d -m 1777 "$TMP"
+  /bin/chmod 1777 "$TMP"
   WEATHER_DB="${TMP}/ws.db"
   if ! "${WINDSPOTS_BIN}/initwsdb" -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
     ws_log_console "process-weather: weather database initialization failed"

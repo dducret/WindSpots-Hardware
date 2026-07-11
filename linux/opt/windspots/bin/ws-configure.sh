@@ -9,6 +9,7 @@ echo "$SERIAL" > /opt/windspots/etc/serial
 /bin/chown windspots:windspots /opt/windspots/etc/serial
 # init database
 /usr/bin/install -d -m 1777 "$TMP"
+/bin/chmod 1777 "$TMP"
 cd "$TMP" || exit 1
 /bin/gzip -f -9 ws.db
 /bin/rm -f ws.db-journal ws.db-wal ws.db-shm

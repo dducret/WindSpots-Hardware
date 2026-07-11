@@ -635,6 +635,7 @@ prepare_weather_database() {
 
   log "Initialize and validate the weather database"
   install -d -m 1777 "${tmp_dir}"
+  chmod 1777 "${tmp_dir}"
   /opt/windspots/bin/initwsdb -s "${station}" -l "${log_dir}" -t "${tmp_dir}"
   chown www-data:windspots "${db_path}"
   chmod 0664 "${db_path}"
