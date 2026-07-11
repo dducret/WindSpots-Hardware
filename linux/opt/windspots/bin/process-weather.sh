@@ -21,7 +21,7 @@ if [ "$W3RPI" = "Y" ]; then
     exit 1
   fi
 
-  chown www-data:windspots "${WEATHER_DB}"
+  chown windspots:www-data "${WEATHER_DB}"
   chmod 0664 "${WEATHER_DB}"
 
   "${WINDSPOTS_BIN}/w3rpi" -s "$STATION" -d "$DIRADJ" -a "$ALTITUDE" -n "$WSANEMO" -p "$WSTEMP" -o "$WSSOLAR" -t "$TMP" -l "$LOG" --debug "$DEBUG" 2>&1 &

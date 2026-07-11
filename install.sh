@@ -491,10 +491,15 @@ configure_windspots_runtime() {
 log "Create users, dirs, symlinks, permissions"
 install -d -o root -g root -m 0755 /opt/windspots
 
-if ! id -u windspots >/dev/null 2>&1; then
-  useradd -r -d /opt/windspots -s /bin/bash windspots
+if ! getent group windspots >/dev/null 2>&1; then
+  groupadd --system windspots
 fi
 
+if ! id -u windspots >/dev/null 2>&1; then
+  useradd -r -g windspots -d /opt/windspots -s /bin/bash windspots
+fi
+
+  usermod -g windspots windspots
   usermod -aG dialout,video,bluetooth windspots || true
   usermod -aG windspots www-data || true
 
@@ -637,7 +642,7 @@ prepare_weather_database() {
   install -d -m 1777 "${tmp_dir}"
   chmod 1777 "${tmp_dir}"
   /opt/windspots/bin/initwsdb -s "${station}" -l "${log_dir}" -t "${tmp_dir}"
-  chown www-data:windspots "${db_path}"
+  chown windspots:www-data "${db_path}"
   chmod 0664 "${db_path}"
 
   weather_database_has_schema "${db_path}" || \

@@ -29,7 +29,7 @@ if ! "${WINDSPOTS_BIN}/initwsdb" -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
 fi
 
 WEATHER_DB="${TMP}/ws.db"
-chown www-data:windspots "${WEATHER_DB}"
+chown windspots:www-data "${WEATHER_DB}"
 chmod 0664 "${WEATHER_DB}"
 
 TABLE_COUNT=$(sqlite3 "${WEATHER_DB}" \

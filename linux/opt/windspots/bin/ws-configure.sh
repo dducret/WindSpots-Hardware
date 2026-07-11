@@ -17,7 +17,7 @@ if ! "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
   ws_log_console "ws-configure: weather database initialization failed"
   exit 1
 fi
-/bin/chown www-data:windspots ws.db
+/bin/chown windspots:www-data ws.db
 /bin/chmod 664 ws.db
 # setup welcome message
 /bin/echo '127.0.0.1 localhost' > /etc/hosts
