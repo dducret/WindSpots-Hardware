@@ -11,8 +11,11 @@ Run `make` in every C++ subfolder that contains a Makefile under this script dir
 Any arguments are passed through to each make command.
 Examples:
   ./makeall.sh
+  ./makeall.sh -B
   ./makeall.sh clean
   ./makeall.sh -j4
+
+Use -B after deploying updated sources to force every binary to be rebuilt.
 USAGE
   exit 0
 fi

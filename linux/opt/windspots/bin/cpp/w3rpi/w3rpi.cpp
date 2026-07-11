@@ -253,7 +253,11 @@ int main(int argc, char *argv[]) {
 
   int iAltitude = atoi(altitude.c_str());
   int iDirection = atoi(direction.c_str());
-  eventManager.init(log, tmp, iAltitude, iDirection, temperature, anemometer, solar);
+  if (!eventManager.init(log, tmp, iAltitude, iDirection, temperature, anemometer, solar)) {
+    std::cerr << "EventManager initialization failed" << std::endl;
+    g_event_manager = NULL;
+    return 1;
+  }
 
   std::thread anemometerThread;
   if(anemometer) {

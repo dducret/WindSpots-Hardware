@@ -67,4 +67,6 @@ CFLAGS += -DINITWSDB_BUILD_DATE=\"$(date +'%Y%m%d')\"
 
 Les fichiers de dependances generes avec `-MMD` sont inclus par le `Makefile`. Une modification de `version.h` force ainsi la recompilation de `initwsdb`.
 
+Pendant l'installation, `makeall.sh -B` force la reconstruction des binaires afin qu'un ancien objet compile ne conserve pas une version obsolete.
+
 Le nettoyage `make clean` supprime les objets, fichiers de dependances et le binaire sans echouer si ces fichiers n'existent pas.

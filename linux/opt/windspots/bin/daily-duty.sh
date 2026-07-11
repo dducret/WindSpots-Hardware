@@ -36,4 +36,7 @@ cd "$TMP" || exit 1
 /usr/bin/touch ws.db
 /bin/chown www-data:windspots ws.db
 /bin/chmod 664 ws.db
-"$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"
+if ! "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
+  ws_log_console "daily-duty: weather database initialization failed"
+  exit 1
+fi

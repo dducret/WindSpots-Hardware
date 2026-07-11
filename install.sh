@@ -667,7 +667,7 @@ systemctl reload nginx
 
 log "## Generate exe and copy to bin"
 chmod +x /opt/windspots/bin/cpp/makeall.sh
-/opt/windspots/bin/cpp/makeall.sh
+/opt/windspots/bin/cpp/makeall.sh -B
 
 log "## Set time zone for php cli"
 ensure_line_present "${PHP_CLI}" "date.timezone = Europe/Zurich"

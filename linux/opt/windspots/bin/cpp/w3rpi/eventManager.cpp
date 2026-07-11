@@ -43,19 +43,22 @@ static bool execSql(sqlite3 *db, const char *sql, char *messageBuffer, size_t me
 
 EventManager::EventManager(const char * _piId)
     : piId(_piId),
-      running(true),
+      running(false),
+      threadStarted(false),
       db(NULL),
       storeStmt(NULL) {
   eventListMutex = PTHREAD_MUTEX_INITIALIZER;
   pthread_cond_init(&eventCond, NULL);
-  pthread_create(&myThread, NULL, eventLoop, this);
 }
 
 EventManager::~EventManager() {
   running = false;
-  // Signal the condition variable to unblock eventLoop if waiting.
-  pthread_cond_signal(&eventCond);
-  pthread_join(myThread, NULL);
+  if (threadStarted) {
+    // Signal the condition variable to unblock eventLoop if waiting.
+    pthread_cond_signal(&eventCond);
+    pthread_join(myThread, NULL);
+    threadStarted = false;
+  }
   if (storeStmt != NULL) {
     sqlite3_finalize(storeStmt);
     storeStmt = NULL;
@@ -128,6 +131,16 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
     storeStmt = NULL;
     return false;
   }
+
+  running = true;
+  const int threadRc = pthread_create(&myThread, NULL, eventLoop, this);
+  if (threadRc != 0) {
+    running = false;
+    snprintf(message, MESSAGE_SIZE, "EventManager::init thread error: %s", strerror(threadRc));
+    logIt();
+    return false;
+  }
+  threadStarted = true;
 
   return true;
 }

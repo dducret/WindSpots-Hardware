@@ -29,6 +29,7 @@ class EventManager {
     pthread_cond_t   eventCond;            // Condition variable for new events
     const char * piId;
     volatile bool running;                // Flag to control thread loop
+    bool threadStarted;
 
     static void * eventLoop(void *);
     std::string logFileName;
