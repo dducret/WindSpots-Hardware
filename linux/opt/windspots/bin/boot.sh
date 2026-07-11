@@ -10,7 +10,6 @@ touch /var/log/windspots.log
 chown windspots:www-data /var/log/windspots.log
 chmod 0664 /var/log/windspots.log
 ln -sfn /var/log/windspots.log /opt/windspots/log/windspots.log
-: > /var/log/windspots.log
 
 # Load common functions and configuration
 . "$(dirname "$0")/common.sh"
