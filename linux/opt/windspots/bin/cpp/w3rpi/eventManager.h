@@ -46,8 +46,6 @@ class EventManager {
     std::unique_ptr<ina219> inaSolar0;
     std::unique_ptr<ina219> ina5v;
     std::unique_ptr<ads1015> ads;
-    sqlite3 *db;
-    sqlite3_stmt *storeStmt;
 
     int anemometerCounter;
     long int fastestCount;

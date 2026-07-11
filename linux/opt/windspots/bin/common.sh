@@ -16,6 +16,8 @@ fi
 : "${WINDSPOTS_BIN:=/opt/windspots/bin}"
 : "${WINDSPOTS_ETC:=/opt/windspots/etc}"
 : "${WINDSPOTS_LOG:=${LOG}/windspots.log}"
+: "${WEATHER_DB_DIR:=${TMP}/windspots}"
+: "${WEATHER_DB:=${WEATHER_DB_DIR}/ws.db}"
 : "${CURL_TIMEOUT:=20}"
 : "${SUNRISE:=0}"
 : "${SUNSET:=2400}"

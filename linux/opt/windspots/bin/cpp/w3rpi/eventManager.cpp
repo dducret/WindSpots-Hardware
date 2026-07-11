@@ -44,9 +44,7 @@ static bool execSql(sqlite3 *db, const char *sql, char *messageBuffer, size_t me
 EventManager::EventManager(const char * _piId)
     : piId(_piId),
       running(false),
-      threadStarted(false),
-      db(NULL),
-      storeStmt(NULL) {
+      threadStarted(false) {
   eventListMutex = PTHREAD_MUTEX_INITIALIZER;
   pthread_cond_init(&eventCond, NULL);
 }
@@ -59,15 +57,6 @@ EventManager::~EventManager() {
     pthread_join(myThread, NULL);
     threadStarted = false;
   }
-  if (storeStmt != NULL) {
-    sqlite3_finalize(storeStmt);
-    storeStmt = NULL;
-  }
-  if (db != NULL) {
-    sqlite3_close(db);
-    db = NULL;
-  }
-
   pthread_cond_destroy(&eventCond);
   pthread_mutex_destroy(&eventListMutex);
 }
@@ -99,7 +88,8 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
   ina5v.reset(new ina219(0x43));
   ads.reset(new ads1015(0x48));
 
-  // Create database if not exist
+  // Create and validate the database, then close it before starting the worker.
+  sqlite3 *db = NULL;
   if(sqlite3_open(this->tmpFileName.c_str(), &db)) {
     snprintf(message, MESSAGE_SIZE, "Can't open database: %s, error: %s", this->tmpFileName.c_str(), sqlite3_errmsg(db));
     logIt();
@@ -118,19 +108,13 @@ bool EventManager::init(std::string log, std::string tmp, int anemometer_altitud
     return false;
   }
 
-  const char *insertSql =
-      "INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign, "
-      "relative_humidity, barometer, wind_direction, wind_speed, wind_speed_average) "
-      "VALUES (?, ?, ?, ?, ?, '0', ?, ?, ?, ?, ?)";
-  const int rc = sqlite3_prepare_v2(db, insertSql, -1, &storeStmt, NULL);
-  if (rc != SQLITE_OK) {
-    snprintf(message, MESSAGE_SIZE, "EventManager::init prepare SQL error: %s", sqlite3_errmsg(db));
+  const int closeRc = sqlite3_close(db);
+  if (closeRc != SQLITE_OK) {
+    snprintf(message, MESSAGE_SIZE, "EventManager::init close SQL error: %s", sqlite3_errstr(closeRc));
     logIt();
-    sqlite3_close(db);
-    db = NULL;
-    storeStmt = NULL;
     return false;
   }
+  db = NULL;
 
   running = true;
   const int threadRc = pthread_create(&myThread, NULL, eventLoop, this);
@@ -309,9 +293,31 @@ void EventManager::store(const char * _name, int channel, double battery, double
     currentTime[sizeof(currentTime) - 1] = '\0';
   }
 
-  if (db == NULL || storeStmt == NULL) {
-    snprintf(message, sizeof(message), "EventManager::store database is not initialized");
+  sqlite3 *storeDb = NULL;
+  sqlite3_stmt *storeStmt = NULL;
+  if (sqlite3_open(tmpFileName.c_str(), &storeDb) != SQLITE_OK) {
+    snprintf(message, sizeof(message), "EventManager::store can't open database %s: %s",
+             tmpFileName.c_str(), storeDb != NULL ? sqlite3_errmsg(storeDb) : "unknown error");
     logIt();
+    if (storeDb != NULL) {
+      sqlite3_close(storeDb);
+    }
+    return;
+  }
+
+  sqlite3_busy_timeout(storeDb, 1000);
+  const char *insertSql =
+      "INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign, "
+      "relative_humidity, barometer, wind_direction, wind_speed, wind_speed_average) "
+      "VALUES (?, ?, ?, ?, ?, '0', ?, ?, ?, ?, ?)";
+  const int prepareRc = sqlite3_prepare_v2(storeDb, insertSql, -1, &storeStmt, NULL);
+  if (prepareRc != SQLITE_OK) {
+    snprintf(message, sizeof(message), "EventManager::store prepare SQL error: %s", sqlite3_errmsg(storeDb));
+    logIt();
+    if (storeStmt != NULL) {
+      sqlite3_finalize(storeStmt);
+    }
+    sqlite3_close(storeDb);
     return;
   }
 
@@ -354,14 +360,20 @@ void EventManager::store(const char * _name, int channel, double battery, double
   }
 
   if(execRc != SQLITE_DONE) {
-    snprintf(message, sizeof(message), "EventManager::store SQL error: %s", sqlite3_errmsg(db));
+    const int extendedRc = sqlite3_extended_errcode(storeDb);
+    snprintf(message, sizeof(message), "EventManager::store SQL error: %s (code %d)", sqlite3_errmsg(storeDb), extendedRc);
     logIt();
-    sqlite3_reset(storeStmt);
-    sqlite3_clear_bindings(storeStmt);
+    sqlite3_finalize(storeStmt);
+    sqlite3_close(storeDb);
     return;
   }
-  sqlite3_reset(storeStmt);
-  sqlite3_clear_bindings(storeStmt);
+  const int finalizeRc = sqlite3_finalize(storeStmt);
+  const int storeCloseRc = sqlite3_close(storeDb);
+  if (finalizeRc != SQLITE_OK || storeCloseRc != SQLITE_OK) {
+    snprintf(message, sizeof(message), "EventManager::store close SQL error: finalize=%d close=%d", finalizeRc, storeCloseRc);
+    logIt();
+    return;
+  }
 
   // Build a log message with safe concatenation.
   if(battery != 0)

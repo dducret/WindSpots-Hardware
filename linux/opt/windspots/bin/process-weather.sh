@@ -6,10 +6,8 @@ killall w3rpi 2>/dev/null
 sleep 1
 
 if [ "$W3RPI" = "Y" ]; then
-  /usr/bin/install -d -m 1777 "$TMP"
-  /bin/chmod 1777 "$TMP"
-  WEATHER_DB="${TMP}/ws.db"
-  if ! "${WINDSPOTS_BIN}/initwsdb" -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
+  /usr/bin/install -d -o windspots -g www-data -m 2775 "$WEATHER_DB_DIR"
+  if ! "${WINDSPOTS_BIN}/initwsdb" -s "${STATION}" -l "${LOG}" -t "${WEATHER_DB_DIR}"; then
     ws_log_console "process-weather: weather database initialization failed"
     exit 1
   fi
@@ -24,7 +22,7 @@ if [ "$W3RPI" = "Y" ]; then
   chown windspots:www-data "${WEATHER_DB}"
   chmod 0664 "${WEATHER_DB}"
 
-  "${WINDSPOTS_BIN}/w3rpi" -s "$STATION" -d "$DIRADJ" -a "$ALTITUDE" -n "$WSANEMO" -p "$WSTEMP" -o "$WSSOLAR" -t "$TMP" -l "$LOG" --debug "$DEBUG" 2>&1 &
+  "${WINDSPOTS_BIN}/w3rpi" -s "$STATION" -d "$DIRADJ" -a "$ALTITUDE" -n "$WSANEMO" -p "$WSTEMP" -o "$WSSOLAR" -t "$WEATHER_DB_DIR" -l "$LOG" --debug "$DEBUG" 2>&1 &
   w3rpi_pid=$!
   sleep 1
   if ! kill -0 "${w3rpi_pid}" 2>/dev/null; then

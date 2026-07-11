@@ -8,12 +8,11 @@ SERIAL="$(cat /proc/cpuinfo | grep Serial | cut -d ':' -f 2)"
 echo "$SERIAL" > /opt/windspots/etc/serial
 /bin/chown windspots:windspots /opt/windspots/etc/serial
 # init database
-/usr/bin/install -d -m 1777 "$TMP"
-/bin/chmod 1777 "$TMP"
-cd "$TMP" || exit 1
+/usr/bin/install -d -o windspots -g www-data -m 2775 "$WEATHER_DB_DIR"
+cd "$WEATHER_DB_DIR" || exit 1
 /bin/gzip -f -9 ws.db
 /bin/rm -f ws.db-journal ws.db-wal ws.db-shm
-if ! "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
+if ! "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${WEATHER_DB_DIR}"; then
   ws_log_console "ws-configure: weather database initialization failed"
   exit 1
 fi

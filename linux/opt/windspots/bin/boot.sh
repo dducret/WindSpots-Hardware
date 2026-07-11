@@ -1,4 +1,9 @@
 #!/bin/sh
+BOOT_MARKER=/run/windspots-booting
+touch "${BOOT_MARKER}"
+trap 'rm -f "${BOOT_MARKER}"' EXIT
+trap 'exit 1' HUP INT TERM
+
 # Prepare the log before common.sh writes its first message.
 install -d -o windspots -g www-data -m 0775 /opt/windspots/log
 touch /var/log/windspots.log
@@ -16,19 +21,14 @@ ws_log_console "[startup] Booting station ${STATION}"
 rm -f "${TMP}/lastconnection" "${TMP}/lastimage" "${TMP}/input.jpg"
 touch "${TMP}/lastconnection" "${TMP}/lastimage"
 
-# Recreate and validate the temporary weather database before continuing.
-# /var/tmp may be cleaned between boots, so this must not run in background.
-if ! "${WINDSPOTS_BIN}/ws-configure.sh" > /dev/null 2>&1; then
-  ws_log_console "ERROR: station configuration failed"
-  exit 1
-fi
-
-if ! "${WINDSPOTS_BIN}/initwsdb" -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
+# Create the temporary weather database if /var/tmp was cleaned between boots.
+# Do not call ws-configure.sh here: it archives and replaces an existing database.
+/usr/bin/install -d -o windspots -g www-data -m 2775 "${WEATHER_DB_DIR}"
+if ! "${WINDSPOTS_BIN}/initwsdb" -s "${STATION}" -l "${LOG}" -t "${WEATHER_DB_DIR}"; then
   ws_log_console "ERROR: weather database initialization failed"
   exit 1
 fi
 
-WEATHER_DB="${TMP}/ws.db"
 chown windspots:www-data "${WEATHER_DB}"
 chmod 0664 "${WEATHER_DB}"
 

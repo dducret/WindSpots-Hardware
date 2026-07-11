@@ -34,9 +34,9 @@ min=$(printf "%.1f" "$(jq -n "$minkm/3.6")")
 lastupdate=$(date +'%F %T')
 ws_log "PP001 - $lastupdate Wind Direction:$direction, Wind Speed:$gust, Average Speed:$min"
 #
-DB="${TMP}/ws.db"
+DB="${WEATHER_DB}"
 sqlite3 "$DB" "INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign, \
  relative_humidity, barometer, wind_direction, wind_speed, wind_speed_average) \
  values ('$lastupdate','PP001',1,0,0,0,0,0,$direction,$gust,$min);"
 # test
-#  sqlite3 /var/tmp/ws.db "select * from data;"
+#  sqlite3 /var/tmp/windspots/ws.db "select * from data;"

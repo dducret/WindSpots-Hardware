@@ -12,7 +12,7 @@ Binaire installe :
 
 ## Role
 
-`initwsdb` cree la base `${TMP}/ws.db` si elle n'existe pas, puis initialise le schema minimal :
+`initwsdb` cree la base `${TMP}/windspots/ws.db` si elle n'existe pas, puis initialise le schema minimal :
 
 - table `data`
 - index `i1` sur `data(last_update)`
@@ -33,7 +33,7 @@ Ensuite, `ws-configure.sh` appelle :
 Les parametres importants pour `initwsdb` sont :
 
 - `-l` : repertoire de log, utilise pour ecrire `windspots.log`
-- `-t` : repertoire temporaire, utilise pour creer `ws.db`
+- `-t` : repertoire de base de donnees, normalement `${TMP}/windspots`, utilise pour creer `ws.db`
 - `-s` : nom de station, actuellement affiche mais pas stocke dans la base
 
 ## Reconfiguration depuis la WUI
@@ -54,6 +54,8 @@ Quand la WUI modifie `/opt/windspots/etc/main`, elle lance ensuite `ws-configure
 Le schema SQLite existe aussi dans `w3rpi/eventManager.cpp`. Toute evolution du schema doit etre appliquee aux deux endroits tant qu'il n'y a pas de source unique.
 
 Le reset de `ws.db` doit etre effectue pendant que `w3rpi` ne tourne pas, sinon il y a un risque de conflit d'acces SQLite.
+
+La base ne doit pas etre placee directement dans `/var/tmp`: Debian Trixie utilise `fs.protected_regular=2`, incompatible avec les ecritures de plusieurs utilisateurs dans un repertoire sticky. Le sous-repertoire `/var/tmp/windspots` appartient a `windspots:www-data` et utilise le mode `2775`.
 
 ## Build
 

@@ -33,12 +33,11 @@ rm -f /var/log/*.1
 # reset database
 /usr/bin/killall w3rpi 2>/dev/null
 /bin/sleep 1
-/usr/bin/install -d -m 1777 "$TMP"
-/bin/chmod 1777 "$TMP"
-cd "$TMP" || exit 1
+/usr/bin/install -d -o windspots -g www-data -m 2775 "$WEATHER_DB_DIR"
+cd "$WEATHER_DB_DIR" || exit 1
 /bin/gzip -f -9 ws.db
 /bin/rm -f ws.db-journal ws.db-wal ws.db-shm
-if ! "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
+if ! "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${WEATHER_DB_DIR}"; then
   ws_log_console "daily-duty: weather database initialization failed"
   exit 1
 fi

@@ -81,13 +81,13 @@ cd /opt/windspots/bin/cpp/initwsdb
 make clean
 make
 /opt/windspots/bin/cpp/initwsdb/initwsdb --help
-sqlite3 /var/tmp/ws.db '.schema'
+sqlite3 /var/tmp/windspots/ws.db '.schema'
 ```
 
 Controles attendus:
 
 - `initwsdb` compile sur la cible;
-- la base `/var/tmp/ws.db` existe apres demarrage ou reconfiguration;
+- la base `/var/tmp/windspots/ws.db` existe apres demarrage ou reconfiguration;
 - le schema contient les tables attendues pour les donnees meteo.
 
 ## Scripts principaux

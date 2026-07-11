@@ -1,8 +1,8 @@
 #!/bin/bash
 . "$(dirname "$0")/common.sh"
 
-if [ -f /run/windspots-installing ]; then
-  ws_log "Installation in progress - health check paused"
+if [ -f /run/windspots-installing ] || [ -f /run/windspots-booting ]; then
+  ws_log "Installation or boot in progress - health check paused"
   exit 0
 fi
 

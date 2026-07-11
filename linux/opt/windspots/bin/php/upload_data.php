@@ -94,7 +94,7 @@ $weatherdata = [];
 $nbrec = 0;
 $previousRow = null;
 
-$dbPath = $windspotsTmp . '/ws.db';
+$dbPath = $windspotsTmp . '/windspots/ws.db';
 if (!file_exists($dbPath)) {
     logIt("Database file not found: $dbPath");
 } else {

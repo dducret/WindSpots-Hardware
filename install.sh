@@ -631,20 +631,23 @@ weather_database_is_writable_by() {
 prepare_weather_database() {
   local station
   local tmp_dir
+  local db_dir
   local log_dir
   local db_path
 
   station="$(windspots_config_value STATION)"
   tmp_dir="$(windspots_config_value TMP)"
+  db_dir="${tmp_dir}/windspots"
   log_dir="$(windspots_config_value LOG)"
-  db_path="${tmp_dir}/ws.db"
+  db_path="${db_dir}/ws.db"
 
   log "Initialize and validate the weather database"
   killall w3rpi 2>/dev/null || true
   sleep 1
   install -d -m 1777 "${tmp_dir}"
   chmod 1777 "${tmp_dir}"
-  /opt/windspots/bin/initwsdb -s "${station}" -l "${log_dir}" -t "${tmp_dir}"
+  install -d -o windspots -g www-data -m 2775 "${db_dir}"
+  /opt/windspots/bin/initwsdb -s "${station}" -l "${log_dir}" -t "${db_dir}"
   chown windspots:www-data "${db_path}"
   chmod 0664 "${db_path}"
 
@@ -720,7 +723,7 @@ validate_installation() {
   local failures=0
   local weather_db
 
-  weather_db="$(windspots_config_value TMP)/ws.db"
+  weather_db="$(windspots_config_value TMP)/windspots/ws.db"
 
   require_path() {
     local label="$1"

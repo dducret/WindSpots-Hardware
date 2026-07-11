@@ -9,7 +9,7 @@
   $newTime = strtotime('-1 minutes');
   $lastUpload = Date("Y-m-d H:i:s", $newTime);
   try {
-    $db = new SQLite3('/var/tmp/ws.db');
+    $db = new SQLite3('/var/tmp/windspots/ws.db');
     $SQLnow = Date("Y-m-d H:i:s");
     // get data
     $result = $db->query('SELECT * FROM data ORDER BY id DESC LIMIT 1');
