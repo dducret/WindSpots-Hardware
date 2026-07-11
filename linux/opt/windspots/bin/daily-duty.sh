@@ -31,12 +31,18 @@ service nginx restart
 >/var/log/wtmp
 rm -f /var/log/*.1
 # reset database
+/usr/bin/killall w3rpi 2>/dev/null
+/bin/sleep 1
+/usr/bin/install -d -m 1777 "$TMP"
 cd "$TMP" || exit 1
 /bin/gzip -f -9 ws.db
-/usr/bin/touch ws.db
-/bin/chown www-data:windspots ws.db
-/bin/chmod 664 ws.db
+/bin/rm -f ws.db-journal ws.db-wal ws.db-shm
 if ! "$WINDSPOTS_BIN"/initwsdb -s "${STATION}" -l "${LOG}" -t "${TMP}"; then
   ws_log_console "daily-duty: weather database initialization failed"
   exit 1
+fi
+/bin/chown www-data:windspots ws.db
+/bin/chmod 664 ws.db
+if [ "$W3RPI" = "Y" ]; then
+  "$WINDSPOTS_BIN"/process-weather.sh
 fi

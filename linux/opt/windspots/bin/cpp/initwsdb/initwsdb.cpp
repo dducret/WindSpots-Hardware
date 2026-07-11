@@ -40,6 +40,7 @@ void logIt(char const *message) {
   }
   log << time << " initwsdb " << message << std::endl;
   log.close();
+  std::cerr << "initwsdb: " << message << std::endl;
 }
 
 static bool execSql(sqlite3 *db, const char *sql) {
@@ -62,7 +63,7 @@ bool initDB() {
   // create database if it does not exist
   if(sqlite3_open(dbFileName.c_str(), &db)) {
     char message[256];
-    std::snprintf(message, sizeof(message), "Can't open database: %s", sqlite3_errmsg(db));
+    std::snprintf(message, sizeof(message), "Can't open database %s: %s", dbFileName.c_str(), sqlite3_errmsg(db));
     logIt(message);
     sqlite3_close(db);
     return false;
@@ -89,31 +90,31 @@ int main(int argc, char *argv[]) {
     if ((arg == "-h") || (arg == "--help")) {
         show_usage(argv[0]);
         return 0;
-    } 
+    }
     if ((arg == "-s") || (arg == "--station")) {
-      if (i + 1 < argc) { 
+      if (i + 1 < argc) {
           station = argv[++i];
-      } else { 
+      } else {
           std::cerr << "--station option requires one argument." << std::endl;
           return 1;
-      }  
-    } 
+      }
+    }
     if ((arg == "-l") || (arg == "--log")) {
-      if (i + 1 < argc) { 
+      if (i + 1 < argc) {
           log = argv[++i];
-      } else { 
+      } else {
           std::cerr << "--log option requires one argument." << std::endl;
           return 1;
-      }  
-    } 
+      }
+    }
     if ((arg == "-t") || (arg == "--tmp")) {
-      if (i + 1 < argc) { 
+      if (i + 1 < argc) {
           tmp = argv[++i];
-      } else { 
+      } else {
           std::cerr << "--tmp option requires one argument." << std::endl;
           return 1;
-      }  
-    } 
+      }
+    }
   }
   printf("Version (%d.%d) Branch (%s) Build date(%s)\n", INITWSDB_VERSION_MAJOR, INITWSDB_VERSION_MINOR, INITWSDB_VERSION_BRANCH, INITWSDB_BUILD_DATE);
   printf("Initialize station:%s, log:%s, tmp:%s\n",station.c_str(), log.c_str(), tmp.c_str());
