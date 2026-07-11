@@ -25,6 +25,7 @@ PHP_FPM_SERVICE="php8.4-fpm.service"
 SYSCTL_FILE="/etc/sysctl.d/98-rpi.conf"
 STATE_DIR="/var/lib/windspots-install"
 STATE_FILE="${STATE_DIR}/state"
+INSTALL_MARKER="/run/windspots-installing"
 NO_REBOOT=0
 RESET_STATE=0
 
@@ -639,6 +640,8 @@ prepare_weather_database() {
   db_path="${tmp_dir}/ws.db"
 
   log "Initialize and validate the weather database"
+  killall w3rpi 2>/dev/null || true
+  sleep 1
   install -d -m 1777 "${tmp_dir}"
   chmod 1777 "${tmp_dir}"
   /opt/windspots/bin/initwsdb -s "${station}" -l "${log_dir}" -t "${tmp_dir}"
@@ -819,6 +822,8 @@ validate_installation() {
 main() {
   parse_args "$@"
   need_root
+  touch "${INSTALL_MARKER}"
+  trap 'rm -f "${INSTALL_MARKER}"' EXIT
   log "Installer options: reset-state=${RESET_STATE}, no-reboot=${NO_REBOOT}"
   init_state
 

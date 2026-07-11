@@ -1,6 +1,11 @@
 #!/bin/bash
 . "$(dirname "$0")/common.sh"
 
+if [ -f /run/windspots-installing ]; then
+  ws_log "Installation in progress - health check paused"
+  exit 0
+fi
+
 # Reboot if requested via /tmp/reboot
 if [ -f "/tmp/reboot" ]; then
   ws_log "*****************************"
