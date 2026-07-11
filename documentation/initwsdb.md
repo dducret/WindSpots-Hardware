@@ -57,12 +57,14 @@ Le reset de `ws.db` doit etre effectue pendant que `w3rpi` ne tourne pas, sinon 
 
 ## Build
 
-`initwsdb` embarque une date de build via `INITWSDB_BUILD_DATE`, definie par le `Makefile`.
+`initwsdb` embarque une date de build via `INITWSDB_BUILD_DATE`, definie par le `Makefile` lors de la compilation. `version.h` contient la date de la version comme valeur de secours.
 
 La date est injectee comme chaine C preprocesseur avec :
 
 ```make
-CXXFLAGS += -DINITWSDB_BUILD_DATE=\"$(date +'%Y%m%d')\"
+CFLAGS += -DINITWSDB_BUILD_DATE=\"$(date +'%Y%m%d')\"
 ```
+
+Les fichiers de dependances generes avec `-MMD` sont inclus par le `Makefile`. Une modification de `version.h` force ainsi la recompilation de `initwsdb`.
 
 Le nettoyage `make clean` supprime les objets, fichiers de dependances et le binaire sans echouer si ces fichiers n'existent pas.

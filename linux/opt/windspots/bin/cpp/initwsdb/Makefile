@@ -8,7 +8,7 @@ TRFLAGS =
 NOTUSEDTRFLAGS = -DTRACEUPLOAD
 
 CFLAGS = -c -MMD
-CXXFLAGS += -DINITWSDB_BUILD_DATE=\"$$(date +'%Y%m%d')\"
+CFLAGS += -DINITWSDB_BUILD_DATE=\"$$(date +'%Y%m%d')\"
 LDFLAGS += -L/usr/local/lib
 LDLIBS += -lsqlite3
 
@@ -20,6 +20,8 @@ target_dir = .
 target_files+= initwsdb.cpp
 target_objects=$(addsuffix .o,$(addprefix $(OBJ_DIR)/,$(basename $(notdir $(target_files)))))
 target=./initwsdb
+
+-include $(target_objects:.o=.d) $(initwsdb_objects:.o=.d)
 
 all:  $(target)
 

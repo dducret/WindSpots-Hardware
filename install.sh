@@ -813,6 +813,7 @@ validate_installation() {
 main() {
   parse_args "$@"
   need_root
+  log "Installer options: reset-state=${RESET_STATE}, no-reboot=${NO_REBOOT}"
   init_state
 
   run_step "download_install_files" "Download install files" download_install_files
@@ -833,8 +834,8 @@ main() {
   if [[ "${NO_REBOOT}" -eq 1 ]]; then
     log "Skipping reboot because --no-reboot was provided"
   else
-    log "Reboot"
-    reboot now
+    log "Requesting reboot through systemd"
+    systemctl reboot || die "Failed to request reboot through systemd"
   fi
 }
 

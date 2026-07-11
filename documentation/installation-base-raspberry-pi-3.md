@@ -83,6 +83,8 @@ Pour relancer toutes les etapes depuis le debut et redemarrer automatiquement si
 ./install.sh --reset-state
 ```
 
+`--reset-state` n'empeche pas le redemarrage. Seule l'option `--no-reboot` le desactive. Les options reconnues sont inscrites au debut du journal d'installation.
+
 Pour consulter l'etat des etapes deja terminees :
 
 ```sh
