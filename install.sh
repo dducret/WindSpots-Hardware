@@ -12,8 +12,10 @@ CMDLINE_TXT="/boot/firmware/cmdline.txt"
 DEBIAN_HOME="/home/debian"
 FSTAB="/etc/fstab"
 INSTALL_URL='https://station.windspots.org/install/'
-LINUX_DIR="${DEBIAN_HOME}/linux"
-LINUX_ZIP="${DEBIAN_HOME}/linux.zip"
+REPOSITORY_ARCHIVE_URL='https://github.com/dducret/WindSpots-Hardware/archive/refs/heads/main.zip'
+REPOSITORY_DIR="${DEBIAN_HOME}/WindSpots-Hardware-main"
+REPOSITORY_ZIP="${DEBIAN_HOME}/WindSpots-Hardware-main.zip"
+LINUX_DIR="${REPOSITORY_DIR}/linux"
 MESH_DIR="/opt/meshagent"
 MESH_BIN="${MESH_DIR}/meshagent"
 MESH_URL='https://mc.windspots.org:444/meshagents?id=c%40BuzaU7IfiIFtx6dIiDjgb479zsNloSnUaeXoLJQ3hgiqj5VS4IM1O9GzJbLjKF&installflags=2&meshinstall=25'
@@ -192,13 +194,13 @@ download_install_files() {
   wget -O "interfaces" "${INSTALL_URL}interfaces"
   wget -O "wpa_supplicant.conf" "${INSTALL_URL}wpa_supplicant.conf"
   wget -O "dhcpd.conf" "${INSTALL_URL}dhcpd.conf"
-  wget -O "linux.zip" "${INSTALL_URL}/linux.zip"
+  wget -O "${REPOSITORY_ZIP}" "${REPOSITORY_ARCHIVE_URL}"
 
   log "Checking downloaded install files"
   [[ -f "${DEBIAN_HOME}/interfaces" ]] || die "interfaces file not found!, please provide it"
   [[ -f "${DEBIAN_HOME}/wpa_supplicant.conf" ]] || die "wpa_supplicant.conf file not found!, please provide it"
   [[ -f "${DEBIAN_HOME}/dhcpd.conf" ]] || die "dhcpd.conf file not found!, please provide it"
-  [[ -f "${DEBIAN_HOME}/linux.zip" ]] || die "linux.zip file not found!, please provide it"
+  [[ -f "${REPOSITORY_ZIP}" ]] || die "Repository archive not found: ${REPOSITORY_ZIP}"
 }
 
 configure_i2c_and_firmware() {
@@ -211,11 +213,26 @@ configure_i2c_and_firmware() {
 
 install_meshagent() {
   log "Installing meshagent"
+  local mesh_bin_new="${MESH_BIN}.new"
+  local meshagent_active=0
+
   mkdir -p "${MESH_DIR}"
-  cd "${MESH_DIR}"
-  wget -O "${MESH_BIN}" "${MESH_URL}"
-  chmod +x "${MESH_BIN}"
-  "${MESH_BIN}" -install --installPath="${MESH_DIR}"
+  rm -f "${mesh_bin_new}"
+  wget -O "${mesh_bin_new}" "${MESH_URL}"
+  chmod 0755 "${mesh_bin_new}"
+
+  if systemctl is-active --quiet meshagent.service; then
+    meshagent_active=1
+  fi
+
+  mv -f "${mesh_bin_new}" "${MESH_BIN}"
+
+  if [[ "${meshagent_active}" -eq 1 ]]; then
+    log "MeshAgent is already running; the new binary will be used after restart"
+  else
+    "${MESH_BIN}" -install --installPath="${MESH_DIR}"
+    systemctl restart meshagent.service
+  fi
 }
 
 prepare_system_packages() {
@@ -451,17 +468,17 @@ systemctl enable --now isc-dhcp-server.service || true
 #########################################
 
 install_windspots_payload() {
-log "Unzipping linux.zip into /home/debian"
-if [[ -f "${LINUX_ZIP}" ]]; then
+log "Unzipping the Git repository into /home/debian"
+if [[ -f "${REPOSITORY_ZIP}" ]]; then
   cd "${DEBIAN_HOME}"
-  rm -rf "${LINUX_DIR}" || true
-  unzip -o "${LINUX_ZIP}"
+  rm -rf "${REPOSITORY_DIR}"
+  unzip -o "${REPOSITORY_ZIP}"
 else
-  die "ERROR: ${LINUX_ZIP} not found. Skipping unzip."
+  die "Repository archive not found: ${REPOSITORY_ZIP}"
 fi
 
 log "Copy WindSpots payload into /opt"
-SRC_WINDSPOTS="/home/debian/linux/opt/windspots"
+SRC_WINDSPOTS="${LINUX_DIR}/opt/windspots"
 if [[ -d "$SRC_WINDSPOTS" ]]; then
   backup_if_exists /opt/windspots
   cp -a "$SRC_WINDSPOTS" /opt/.
@@ -497,8 +514,8 @@ rm -rf /opt/windspots/html/img
 ln -sfn /var/tmp/img /opt/windspots/html/img
 
   touch /var/log/windspots.log
-  chown windspots:www-data /var/log/windspots.log || true
-  chmod 0664 /var/log/windspots.log || true
+  chown windspots:www-data /var/log/windspots.log
+  chmod 0664 /var/log/windspots.log
   install -d -o windspots -g www-data -m 0775 /opt/windspots/log
   ln -sfn /var/log/windspots.log /opt/windspots/log/windspots.log
 
@@ -564,14 +581,73 @@ NoNewPrivileges=true
 PrivateTmp=false
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/var/tmp
+ReadWritePaths=/var/tmp /var/log/windspots.log /opt/windspots/log
 
 [Install]
 WantedBy=multi-user.target
 '
 write_unit_backup /etc/systemd/system/windspots.service "$WINDSPOTS_UNIT"
 systemctl daemon-reload
-systemctl enable --now windspots.service || true
+systemctl enable windspots.service
+}
+
+windspots_config_value() {
+  local name="$1"
+  (
+    set +u
+    # shellcheck disable=SC1091
+    . /opt/windspots/etc/main
+    printf '%s' "${!name}"
+  )
+}
+
+weather_database_has_schema() {
+  local db_path="$1"
+  local table_count
+
+  table_count="$(sqlite3 "${db_path}" \
+    "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('data', 'log');")"
+  [[ "${table_count}" == "2" ]]
+}
+
+weather_database_is_writable_by() {
+  local db_path="$1"
+  local user="$2"
+
+  runuser -u "${user}" -- sqlite3 -cmd '.timeout 5000' "${db_path}" \
+    "BEGIN IMMEDIATE;
+     INSERT INTO data (last_update, name, channel, battery, temperature, temperature_sign,
+                       relative_humidity, barometer, wind_direction, wind_speed, wind_speed_average)
+     VALUES (CURRENT_TIMESTAMP, 'INSTALL-TEST', 0, 100, 20, '0', 50, 1013, 180, 5, 4);
+     ROLLBACK;"
+}
+
+prepare_weather_database() {
+  local station
+  local tmp_dir
+  local log_dir
+  local db_path
+
+  station="$(windspots_config_value STATION)"
+  tmp_dir="$(windspots_config_value TMP)"
+  log_dir="$(windspots_config_value LOG)"
+  db_path="${tmp_dir}/ws.db"
+
+  log "Initialize and validate the weather database"
+  install -d -m 1777 "${tmp_dir}"
+  /opt/windspots/bin/initwsdb -s "${station}" -l "${log_dir}" -t "${tmp_dir}"
+  chown www-data:windspots "${db_path}"
+  chmod 0664 "${db_path}"
+
+  weather_database_has_schema "${db_path}" || \
+    die "Weather database schema is missing from ${db_path}"
+  weather_database_is_writable_by "${db_path}" windspots || \
+    die "Weather database is not writable by windspots: ${db_path}"
+  weather_database_is_writable_by "${db_path}" www-data || \
+    die "Weather database is not writable by www-data: ${db_path}"
+
+  log "Start WindSpots service"
+  systemctl restart windspots.service
 }
 
 configure_web_stack() {
@@ -611,7 +687,7 @@ install -m 0600 -D "${DEBIAN_HOME}/wpa_supplicant.conf" /etc/wpa_supplicant/wpa_
 chown root:www-data /etc/wpa_supplicant/wpa_supplicant.conf
 chmod 0660 /etc/wpa_supplicant/wpa_supplicant.conf
 
-log "## Set Huiawei 4G USB Dongle"
+log "## Set Huawei 4G USB Dongle"
 printf '%s\n' 'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{type}=="1", KERNEL=="usb*", NAME="eth1"' > /etc/udev/rules.d/70-usb-to-eth1.rules
 
 log "## Disable NetworkManager services"
@@ -633,6 +709,9 @@ systemctl mask cloud-config.service cloud-final.service cloud-init-local.service
 validate_installation() {
   log "Validating WindSpots installation"
   local failures=0
+  local weather_db
+
+  weather_db="$(windspots_config_value TMP)/ws.db"
 
   require_path() {
     local label="$1"
@@ -702,9 +781,13 @@ validate_installation() {
   require_path "PHP CLI config" "${PHP_CLI}"
   require_path "PHP FPM config" "${PHP_FPM}"
   require_path "WUI sudoers policy" /etc/sudoers.d/windspots-wui
+  require_path "WindSpots weather database" "${weather_db}"
 
   require_command "nginx configuration" nginx -t
   require_command "WUI sudoers policy" visudo -cf /etc/sudoers.d/windspots-wui
+  require_command "weather database schema" weather_database_has_schema "${weather_db}"
+  require_command "weather database writable by windspots" weather_database_is_writable_by "${weather_db}" windspots
+  require_command "weather database writable by www-data" weather_database_is_writable_by "${weather_db}" www-data
   if command -v dhcpd >/dev/null 2>&1; then
     require_command "DHCP configuration" dhcpd -t -cf /etc/dhcp/dhcpd.conf
   else
@@ -742,6 +825,7 @@ main() {
   run_step "install_windspots_payload" "Install WindSpots payload" install_windspots_payload
   run_step "configure_windspots_runtime" "Configure WindSpots runtime" configure_windspots_runtime
   run_step "configure_web_stack" "Configure web stack and build binaries" configure_web_stack
+  run_step "prepare_weather_database" "Initialize and validate weather database" prepare_weather_database
   run_step "configure_network_stack" "Configure network stack" configure_network_stack
 
   validate_installation

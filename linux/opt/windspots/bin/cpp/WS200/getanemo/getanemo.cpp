@@ -263,8 +263,7 @@ static bool isW3rpiRunning()
 static bool loadLatestWindFromWsDb(double *speed, double *direction)
 {
   const char *dbPaths[] = {"/var/tmp/ws.db", "/tmp/ws.db"};
-  const char *query = "SELECT wind_direction, wind_speed_average FROM data WHERE name='WS200' ORDER BY id DESC LIMIT 1
-;";
+  const char *query = "SELECT wind_direction, wind_speed_average FROM data WHERE name='WS200' ORDER BY id DESC LIMIT 1;";
 
   for (size_t i = 0; i < sizeof(dbPaths) / sizeof(dbPaths[0]); ++i) {
     if (access(dbPaths[i], R_OK) != 0) {

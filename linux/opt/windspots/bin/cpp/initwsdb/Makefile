@@ -9,7 +9,8 @@ NOTUSEDTRFLAGS = -DTRACEUPLOAD
 
 CFLAGS = -c -MMD
 CXXFLAGS += -DINITWSDB_BUILD_DATE=\"$$(date +'%Y%m%d')\"
-LDFLAGS += -L/usr/local/lib -lsqlite3
+LDFLAGS += -L/usr/local/lib
+LDLIBS += -lsqlite3
 
 initwsdb_dir = ./
 initwsdb_files =
@@ -23,7 +24,7 @@ target=./initwsdb
 all:  $(target)
 
 $(target): $(target_objects) $(initwsdb_objects)
-	$(CX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+	$(CX) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 	chmod +x $@
 
 $(OBJ_DIR)/%.o: $(initwsdb_dir)/%.cpp $(initwsdb_dir)/%.h
@@ -41,4 +42,3 @@ $(OBJ_DIR)/%.o: $(target_dir)/%.cpp
 clean:
 	@rm -f $(OBJ_DIR)/*.o $(OBJ_DIR)/*.d
 	@rm -f $(target)
-

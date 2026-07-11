@@ -33,27 +33,121 @@ get_dhcp_lease_value() {
     local iface="$1"
     local key="$2"
     local lease_file="/var/lib/dhcp/dhclient.${iface}.leases"
+    local global_lease_file="/var/lib/dhcp/dhclient.leases"
+    local value
 
-    [ -f "$lease_file" ] || return 1
+    if [ -f "$lease_file" ]; then
+        value=$(awk -v key="$key" '
+            $1 == "option" && $2 == key {
+                value = $0
+                sub(/^[[:space:]]*option[[:space:]]+[^[:space:]]+[[:space:]]+/, "", value)
+                sub(/;[[:space:]]*$/, "", value)
+            }
+            END {
+                if (value != "") {
+                    print value
+                }
+            }
+        ' "$lease_file")
+        if [ -n "$value" ]; then
+            printf '%s\n' "$value"
+            return 0
+        fi
+    fi
 
-    awk -v key="$key" '
-        $1 == "option" && $2 == key {
-            value = $0
-            sub(/^option[[:space:]]+[^[:space:]]+[[:space:]]+/, "", value)
-            sub(/;[[:space:]]*$/, "", value)
+    [ -f "$global_lease_file" ] || return 1
+
+    awk -v iface="$iface" -v key="$key" '
+        $1 == "lease" && $2 == "{" {
+            in_lease = 1
+            lease_iface = ""
+            lease_value = ""
+            next
+        }
+        in_lease && $1 == "interface" {
+            lease_iface = $2
+            gsub(/[";]/, "", lease_iface)
+        }
+        in_lease && $1 == "option" && $2 == key {
+            lease_value = $0
+            sub(/^[[:space:]]*option[[:space:]]+[^[:space:]]+[[:space:]]+/, "", lease_value)
+            sub(/;[[:space:]]*$/, "", lease_value)
+        }
+        in_lease && $1 == "}" {
+            if (lease_iface == iface && lease_value != "") {
+                value = lease_value
+            }
+            in_lease = 0
         }
         END {
             if (value != "") {
                 print value
             }
         }
-    ' "$lease_file"
+    ' "$global_lease_file"
 }
 
 get_dhcp_dns_servers() {
     local iface="$1"
 
     get_dhcp_lease_value "$iface" "domain-name-servers" | tr ',' ' ' | tr -d '"'
+}
+
+get_dhcp_router() {
+    local iface="$1"
+
+    get_dhcp_lease_value "$iface" "routers" | tr -d '"' | awk '{print $1}'
+}
+
+restore_default_route() {
+    local iface="$1"
+    local router
+    local route_error
+
+    if [ "$(get_operstate "$iface")" != "up" ]; then
+        ws_log "Cannot restore default route: ${iface} is not up"
+        return 1
+    fi
+
+    router=$(get_dhcp_router "$iface")
+    if [ -z "$router" ]; then
+        ws_log "Cannot restore default route: no DHCP router found for ${iface}"
+        return 1
+    fi
+
+    if route_error=$(ip route add default via "$router" dev "$iface" 2>&1); then
+        ws_log "Restored default route via ${router} dev ${iface}"
+        return 0
+    fi
+
+    ws_log "Cannot restore default route via ${router} dev ${iface}: ${route_error}"
+    return 1
+}
+
+check_meshcentral() {
+    local mesh_dir="/opt/meshagent"
+
+    ws_log_console "Checking MeshCentral agent"
+
+    if [ -f "${mesh_dir}/meshagent.msh" ] &&
+       [ -f "${mesh_dir}/meshagent.db" ] &&
+       systemctl is-active --quiet meshagent.service; then
+        ws_log_console "MeshCentral agent: OK"
+        return 0
+    fi
+
+    ws_log_console "MeshCentral agent: repair required; starting mesh-selfheal.sh"
+    "${WINDSPOTS_BIN}/mesh-selfheal.sh" > /dev/null 2>&1 &
+    return 1
+}
+
+internet_connected() {
+    local message="$1"
+
+    ws_log_console "$message"
+    touch "${TMP}/lastconnection"
+    check_meshcentral || true
+    exit 0
 }
 
 has_nameserver_config() {
@@ -158,12 +252,17 @@ if [ -n "$DEFAULT_GW" ]; then
   ws_log_console "Default route: ${DEFAULT_GW}"
 else
   ws_log "No default route"
-  if [ "$(get_operstate "$PPP_IFACE")" = "up" ]; then
-    DEFAULT_ROUTE=$(grep routers "/var/lib/dhcp/dhclient.${PPP_IFACE}.leases" 2>/dev/null | sort -u | cut -d ' ' -f 5 | sed -e 's/;//')
-    if [ -n "$DEFAULT_ROUTE" ]; then
-      route add -net 0.0.0.0/0 gw "$DEFAULT_ROUTE"
-    fi
+  ROUTE_RESTORED=N
+
+  if [ "$PPP" = "Y" ] && restore_default_route "$PPP_IFACE"; then
+    ROUTE_RESTORED=Y
+  elif [ "$RJ45" = "Y" ] && restore_default_route eth0; then
+    ROUTE_RESTORED=Y
+  elif [ "$WIFI" = "Y" ] && restore_default_route wlan0; then
+    ROUTE_RESTORED=Y
   fi
+
+  [ "$ROUTE_RESTORED" = "Y" ] || ws_log "Unable to restore a default route from DHCP leases"
 fi
 
 # Conduct connectivity test
@@ -171,9 +270,7 @@ PACKETS=1
 TARGET="www.windspots.com"
 RET=$(ping -c $PACKETS "$TARGET" 2>/dev/null | awk '/received/ {print $4}')
 if [ "$RET" = "1" ]; then
-  ws_log_console "Connected to Internet"
-  touch "${TMP}/lastconnection"
-  exit 0
+  internet_connected "Connected to Internet"
 else
   ws_log "No ping response from hostname. Trying IP fallback..."
   TARGET2="1.1.1.1"
@@ -183,17 +280,13 @@ else
     if refresh_dns_config "$PPP_IFACE"; then
       RET=$(ping -c $PACKETS "$TARGET" 2>/dev/null | awk '/received/ {print $4}')
       if [ "$RET" = "1" ]; then
-        ws_log_console "Connected to Internet after DNS refresh."
-        touch "${TMP}/lastconnection"
-        exit 0
+        internet_connected "Connected to Internet after DNS refresh."
       fi
     elif ! has_nameserver_config; then
       ws_log "No DNS servers configured and no DHCP DNS lease found for ${PPP_IFACE}."
     fi
 
-    ws_log_console "Connected to Internet via IP fallback. DNS resolution is failing."
-    touch "${TMP}/lastconnection"
-    exit 0
+    internet_connected "Connected to Internet via IP fallback. DNS resolution is failing."
   else
     ws_log "No ping response from IP address fallback."
   fi

@@ -8,10 +8,10 @@ OBJ=$(SRC:.cpp=.o)
 all: $(EXEC)
 
 $(EXEC): $(OBJ)
-        $(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(OBJ): $(SRC)
-        $(CXX) -o $@ -c $< $(CXXFLAGS)
+	$(CXX) -o $@ -c $< $(CXXFLAGS)
 
 clean:
-        rm -f $(OBJ) $(EXEC)
+	rm -f $(OBJ) $(EXEC)
