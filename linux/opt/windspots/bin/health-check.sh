@@ -1,7 +1,22 @@
 #!/bin/bash
 . "$(dirname "$0")/common.sh"
 
-if [ -f /run/windspots-installing ] || [ -f /run/windspots-booting ]; then
+marker_is_active() {
+  local marker="$1"
+  local marker_pid=""
+
+  if [ ! -r "$marker" ]; then
+    return 1
+  fi
+  read -r marker_pid < "$marker"
+  if [ -n "$marker_pid" ] && kill -0 "$marker_pid" 2>/dev/null; then
+    return 0
+  fi
+  rm -f "$marker"
+  return 1
+}
+
+if marker_is_active /run/windspots-installing || marker_is_active /run/windspots-booting; then
   ws_log "Installation or boot in progress - health check paused"
   exit 0
 fi

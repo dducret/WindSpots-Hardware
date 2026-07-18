@@ -2,7 +2,8 @@
 // Send weather station data to WindSpots endpoints.
 
 const MAX_WIND_SPEED = 50.0;
-const CURL_TIMEOUT = 20;
+const CURL_CONNECT_TIMEOUT = 5;
+const CURL_TIMEOUT = 10;
 const DB_BUSY_TIMEOUT_MS = 1000;
 
 // Retrieve command line arguments with default values.
@@ -63,7 +64,7 @@ function sendToEndpoint($url, $data) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, CURL_CONNECT_TIMEOUT);
     curl_setopt($ch, CURLOPT_TIMEOUT, CURL_TIMEOUT);
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);

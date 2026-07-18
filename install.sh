@@ -44,6 +44,149 @@ log() {
 }
 die() { printf "\nERROR: %s\n" "$*" >&2; exit 1; }
 
+internet_works() {
+  local url
+
+  for url in "${INSTALL_URL}" "https://github.com/"; do
+    if wget --quiet --spider --timeout=10 --tries=1 "${url}" 2>/dev/null; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+physical_network_interfaces() {
+  local path
+
+  for path in /sys/class/net/*; do
+    [[ -e "${path}/device" ]] || continue
+    printf '%s\n' "${path##*/}"
+  done
+}
+
+is_huawei_interface() {
+  local iface="$1"
+  local properties
+
+  command -v udevadm >/dev/null 2>&1 || return 1
+  properties="$(udevadm info --query=property --path="/sys/class/net/${iface}" 2>/dev/null || true)"
+  grep -Eqi '(^ID_VENDOR_ID=12d1$|^ID_VENDOR=.*huawei)' <<< "${properties}"
+}
+
+activate_network_interfaces() {
+  local iface
+  local -a interfaces=()
+  local networkmanager_available=0
+
+  mapfile -t interfaces < <(physical_network_interfaces)
+  if [[ "${#interfaces[@]}" -eq 0 ]]; then
+    log "No physical network interface was detected"
+    return 0
+  fi
+
+  log "Activating physical network interfaces: ${interfaces[*]}"
+  if command -v rfkill >/dev/null 2>&1; then
+    rfkill unblock all || true
+  fi
+
+  if command -v nmcli >/dev/null 2>&1; then
+    systemctl start NetworkManager.service 2>/dev/null || true
+    if nmcli general status >/dev/null 2>&1; then
+      networkmanager_available=1
+      nmcli radio all on || true
+    fi
+  fi
+
+  for iface in "${interfaces[@]}"; do
+    if is_huawei_interface "${iface}"; then
+      log "Huawei USB 4G interface detected: ${iface}"
+    fi
+
+    ip link set dev "${iface}" up || true
+
+    if [[ "${networkmanager_available}" -eq 1 ]] &&
+       timeout 20s nmcli --wait 15 device connect "${iface}"; then
+      continue
+    fi
+    if command -v ifup >/dev/null 2>&1 && command -v ifquery >/dev/null 2>&1 &&
+       ifquery "${iface}" >/dev/null 2>&1 && timeout 20s ifup "${iface}"; then
+      continue
+    fi
+    if command -v dhclient >/dev/null 2>&1 && timeout 20s dhclient -1 "${iface}"; then
+      continue
+    fi
+    if command -v dhcpcd >/dev/null 2>&1; then
+      dhcpcd -n "${iface}" || true
+      continue
+    fi
+
+    log "No available network manager could configure ${iface}"
+  done
+
+  sleep 5
+}
+
+internet_failure_reason() {
+  local -a interfaces=()
+  local iface
+  local has_carrier=0
+  local has_ipv4=0
+  local failed_urls=()
+  local url
+
+  mapfile -t interfaces < <(physical_network_interfaces)
+  if [[ "${#interfaces[@]}" -eq 0 ]]; then
+    printf '%s' "no physical network interface was detected"
+    return
+  fi
+
+  for iface in "${interfaces[@]}"; do
+    if [[ "$(cat "/sys/class/net/${iface}/carrier" 2>/dev/null || true)" == "1" ]]; then
+      has_carrier=1
+    fi
+    if ip -4 address show dev "${iface}" scope global 2>/dev/null | grep -q 'inet '; then
+      has_ipv4=1
+    fi
+  done
+
+  if [[ "${has_carrier}" -eq 0 ]]; then
+    printf 'no active link was detected on: %s' "${interfaces[*]}"
+  elif [[ "${has_ipv4}" -eq 0 ]]; then
+    printf 'no IPv4 address was assigned to: %s (DHCP or Wi-Fi configuration failed)' "${interfaces[*]}"
+  elif ! ip -4 route show default | grep -q '^default '; then
+    printf '%s' "no IPv4 default route is configured"
+  elif ! getent ahostsv4 github.com >/dev/null 2>&1; then
+    printf '%s' "the default route exists, but DNS cannot resolve github.com"
+  else
+    for url in "${INSTALL_URL}" "https://github.com/"; do
+      if ! wget --quiet --spider --timeout=10 --tries=1 "${url}" 2>/dev/null; then
+        failed_urls+=("${url}")
+      fi
+    done
+    printf 'DNS and the default route work, but HTTPS access failed for: %s' "${failed_urls[*]}"
+  fi
+}
+
+ensure_internet_connection() {
+  log "Checking Internet access required by the installer"
+  if internet_works; then
+    log "Internet access is available"
+    return 0
+  fi
+
+  log "Internet access is unavailable; trying every physical network interface"
+  activate_network_interfaces
+
+  log "Checking Internet access again"
+  if internet_works; then
+    log "Internet access restored; continuing installation"
+    return 0
+  fi
+
+  die "Internet access is still unavailable: $(internet_failure_reason)."
+}
+
 usage() {
   cat <<'USAGE'
 Usage: ./install.sh [options]
@@ -305,6 +448,7 @@ if [[ -f "${CONFIG_TXT}" ]]; then
   ensure_line_present "${CONFIG_TXT}" "core_freq=250"
   ensure_line_present "${CONFIG_TXT}" "core_freq_min=250"
   ensure_line_present "${CONFIG_TXT}" "dtparam=krnbt=on"
+  ensure_line_present "${CONFIG_TXT}" "enable_uart=1"
 else
   die "WARNING: ${CONFIG_TXT} not found; skipping."
 fi
@@ -504,6 +648,12 @@ fi
   usermod -aG dialout,video,bluetooth windspots || true
   usermod -aG windspots www-data || true
 
+cat >/etc/tmpfiles.d/windspots.conf <<'EOF'
+d /var/log/nginx 0755 www-data adm -
+f /var/log/windspots.log 0664 windspots www-data -
+EOF
+systemd-tmpfiles --create /etc/tmpfiles.d/windspots.conf
+
 # NOTE: instruction said "Debian" (capitalized). Debian usernames are typically lowercase "debian".
 if id -u debian >/dev/null 2>&1; then
   usermod -aG www-data debian || true
@@ -669,6 +819,8 @@ log "Backup nginx default site config"
 backup_file /etc/nginx/sites-available/default
 install -m 0644 -D "${LINUX_DIR}/etc/nginx/sites-available/default" /etc/nginx/sites-available/default
 
+install -d -o www-data -g adm -m 0755 /var/log/nginx
+
 log "Enable nginx using i2c"
 usermod -aG i2c www-data
 
@@ -792,6 +944,7 @@ validate_installation() {
   require_path "wpa supplicant config" /etc/wpa_supplicant/wpa_supplicant.conf
   require_path "DHCP config" /etc/dhcp/dhcpd.conf
   require_path "nginx default site" /etc/nginx/sites-available/default
+  require_path "WindSpots tmpfiles policy" /etc/tmpfiles.d/windspots.conf
   require_path "PHP CLI config" "${PHP_CLI}"
   require_path "PHP FPM config" "${PHP_FPM}"
   require_path "WUI sudoers policy" /etc/sudoers.d/windspots-wui
@@ -827,9 +980,10 @@ validate_installation() {
 main() {
   parse_args "$@"
   need_root
-  touch "${INSTALL_MARKER}"
+  printf '%s\n' "$$" > "${INSTALL_MARKER}"
   trap 'rm -f "${INSTALL_MARKER}"' EXIT
   log "Installer options: reset-state=${RESET_STATE}, no-reboot=${NO_REBOOT}"
+  ensure_internet_connection
   init_state
 
   run_step "download_install_files" "Download install files" download_install_files

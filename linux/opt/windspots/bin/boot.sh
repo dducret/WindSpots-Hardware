@@ -1,6 +1,6 @@
 #!/bin/sh
 BOOT_MARKER=/run/windspots-booting
-touch "${BOOT_MARKER}"
+printf '%s\n' "$$" > "${BOOT_MARKER}"
 trap 'rm -f "${BOOT_MARKER}"' EXIT
 trap 'exit 1' HUP INT TERM
 
